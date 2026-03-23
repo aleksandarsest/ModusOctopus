@@ -7,12 +7,16 @@ import { reactive } from 'vue'
 const state = reactive({
   files: [],
   simulationRequirement: '',
+  llmConfig: null,
+  llmApiKey: '',
   isPending: false
 })
 
-export function setPendingUpload(files, requirement) {
+export function setPendingUpload(files, requirement, llmConfig = null, llmApiKey = '') {
   state.files = files
   state.simulationRequirement = requirement
+  state.llmConfig = llmConfig
+  state.llmApiKey = llmApiKey
   state.isPending = true
 }
 
@@ -20,6 +24,8 @@ export function getPendingUpload() {
   return {
     files: state.files,
     simulationRequirement: state.simulationRequirement,
+    llmConfig: state.llmConfig,
+    llmApiKey: state.llmApiKey,
     isPending: state.isPending
   }
 }
@@ -27,6 +33,8 @@ export function getPendingUpload() {
 export function clearPendingUpload() {
   state.files = []
   state.simulationRequirement = ''
+  state.llmConfig = null
+  state.llmApiKey = ''
   state.isPending = false
 }
 

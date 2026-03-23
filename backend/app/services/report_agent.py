@@ -886,7 +886,8 @@ class ReportAgent:
         simulation_id: str,
         simulation_requirement: str,
         llm_client: Optional[LLMClient] = None,
-        zep_tools: Optional[ZepToolsService] = None
+        zep_tools: Optional[ZepToolsService] = None,
+        provider_config: Optional[Dict[str, Any]] = None,
     ):
         """
         初始化Report Agent
@@ -902,8 +903,15 @@ class ReportAgent:
         self.simulation_id = simulation_id
         self.simulation_requirement = simulation_requirement
         
-        self.llm = llm_client or LLMClient()
-        self.zep_tools = zep_tools or ZepToolsService()
+        self.llm = llm_client or LLMClient(provider_config=provider_config)
+        capabilities = getattr(self.llm, "capabilities", None)
+        if capabilities is not None and not capabilities.supports_pipeline:
+            provider_type = getattr(self.llm, "provider_type", "unknown")
+            mode = getattr(self.llm, "mode", "unknown")
+            raise ValueError(
+                f"ReportAgent requires a pipeline-capable LLM provider; got {provider_type} ({mode})"
+            )
+        self.zep_tools = zep_tools or ZepToolsService(llm_client=self.llm)
         
         # 工具定义
         self.tools = self._define_tools()
