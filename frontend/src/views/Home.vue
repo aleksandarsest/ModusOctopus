@@ -135,12 +135,89 @@
             </div>
 
             <div class="console-divider">
+              <span>Choose your LLM provider</span>
+            </div>
+
+            <div class="onboarding-step">
+              <div class="console-header">
+                <span class="console-label">02 / Provider configuration</span>
+                <span class="console-meta">Per-project provider for refinement and runtime</span>
+              </div>
+
+              <div class="scenario-grid provider-grid">
+                <button
+                  v-for="provider in providerOptions"
+                  :key="provider.id"
+                  type="button"
+                  class="scenario-card provider-card"
+                  :class="{ active: selectedProvider === provider.id }"
+                  @click="selectProvider(provider.id)"
+                >
+                  <span class="scenario-name">{{ provider.name }}</span>
+                  <span class="scenario-copy">{{ provider.short }}</span>
+                </button>
+              </div>
+
+              <div class="guidance-card provider-guidance">
+                <div class="guidance-title">{{ currentProvider.name }}</div>
+                <p class="guidance-copy">{{ currentProvider.description }}</p>
+                <div class="guidance-list">
+                  <span>{{ currentProvider.supportsPipeline ? 'Supports full pipeline' : 'Refinement only' }}</span>
+                  <span>{{ currentProvider.supportsRefinement ? 'Supports brief refinement' : 'No brief refinement' }}</span>
+                </div>
+              </div>
+
+              <div class="structured-grid provider-fields">
+                <label v-if="currentProvider.requiresModel" class="input-group">
+                  <span>Model name</span>
+                  <input v-model="providerForm.model_name" type="text" :disabled="loading || providerLoading" />
+                </label>
+
+                <label v-if="currentProvider.requiresBaseUrl" class="input-group">
+                  <span>Base URL</span>
+                  <input v-model="providerForm.base_url" type="text" :disabled="loading || providerLoading" />
+                </label>
+
+                <label v-if="currentProvider.requiresApiKey" class="input-group full-width">
+                  <span>API key</span>
+                  <input v-model="providerForm.api_key" type="password" :disabled="loading || providerLoading" />
+                </label>
+
+                <label v-if="currentProvider.usesExecutable" class="input-group">
+                  <span>Executable</span>
+                  <input v-model="providerForm.executable" type="text" :disabled="loading || providerLoading" />
+                </label>
+              </div>
+
+              <div class="provider-actions">
+                <button type="button" class="secondary-btn" :disabled="providerLoading || !providerCanValidate" @click="runProviderCheck">
+                  {{ providerLoading ? 'Checking...' : 'Check provider' }}
+                </button>
+                <button type="button" class="secondary-btn" :disabled="refineLoading || !providerCanRefine || !simulationRequirement.trim()" @click="runBriefRefinement">
+                  {{ refineLoading ? 'Refining...' : 'Refine brief' }}
+                </button>
+                <button
+                  v-if="refinedBrief"
+                  type="button"
+                  class="secondary-btn ghost-btn"
+                  :disabled="loading || refineLoading"
+                  @click="clearRefinedBrief"
+                >
+                  Reset refined brief
+                </button>
+              </div>
+
+              <p v-if="providerError" class="error-text">{{ providerError }}</p>
+              <p v-if="providerStatusText" class="helper-text">{{ providerStatusText }}</p>
+            </div>
+
+            <div class="console-divider">
               <span>Add your source material</span>
             </div>
 
             <div class="onboarding-step">
               <div class="console-header">
-                <span class="console-label">02 / Upload source documents</span>
+                <span class="console-label">03 / Upload source documents</span>
                 <span class="console-meta">PDF, Markdown, TXT</span>
               </div>
 
@@ -193,7 +270,7 @@
 
             <div class="onboarding-step">
               <div class="console-header">
-                <span class="console-label">03 / Build the brief</span>
+                <span class="console-label">04 / Build the brief</span>
                 <span class="console-meta">Use the structure below</span>
               </div>
 
@@ -227,33 +304,10 @@
               <div class="brief-preview">
                 <div class="preview-header">
                   <span class="preview-title">Final simulation brief</span>
-                  <span class="model-badge">Engine: MiroFish v1</span>
+                  <span class="model-badge">Provider: {{ currentProvider.name }}</span>
                 </div>
-                <pre>{{ simulationRequirement }}</pre>
-              </div>
-            </div>
-
-            <div class="console-divider">
-              <span>Optional agent assist</span>
-            </div>
-
-            <div class="onboarding-step">
-              <div class="assist-grid">
-                <div class="assist-card">
-                  <div class="assist-header">
-                    <span class="assist-title">Refine with Codex</span>
-                    <button type="button" class="copy-btn" @click="copyPrompt(codexPrompt)">Copy</button>
-                  </div>
-                  <p class="assist-copy">Use your existing Codex session to tighten the brief before you run.</p>
-                </div>
-
-                <div class="assist-card">
-                  <div class="assist-header">
-                    <span class="assist-title">Refine with Claude Code</span>
-                    <button type="button" class="copy-btn" @click="copyPrompt(claudePrompt)">Copy</button>
-                  </div>
-                  <p class="assist-copy">Use Claude Code to spot missing inputs or clarify the scenario framing.</p>
-                </div>
+                <pre>{{ finalSimulationRequirement }}</pre>
+                <p v-if="refinedBrief" class="helper-text">Using the refined brief for the next run.</p>
               </div>
             </div>
 
@@ -278,6 +332,7 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
+import { refineBrief, validateProvider } from '../api/providers'
 
 const router = useRouter()
 
@@ -354,18 +409,97 @@ const scenarios = [
   }
 ]
 
+const providerOptions = [
+  {
+    id: 'openai_compatible',
+    name: 'OpenAI-compatible API',
+    short: 'Use any OpenAI-style endpoint with your own API key.',
+    description: 'Best when you want to use OpenRouter, vLLM, or another OpenAI-compatible deployment for both refinement and the full pipeline.',
+    requiresApiKey: true,
+    requiresBaseUrl: true,
+    requiresModel: true,
+    usesExecutable: false,
+    supportsPipeline: true,
+    supportsRefinement: true
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI API',
+    short: 'Use OpenAI directly for refinement and the full MiroFish pipeline.',
+    description: 'Best when you want one provider for ontology generation, simulation prep, reports, and brief refinement.',
+    requiresApiKey: true,
+    requiresBaseUrl: false,
+    requiresModel: true,
+    usesExecutable: false,
+    supportsPipeline: true,
+    supportsRefinement: true
+  },
+  {
+    id: 'anthropic',
+    name: 'Anthropic API',
+    short: 'Use Claude models via Anthropic API for the full pipeline.',
+    description: 'Best when you want Claude to handle brief refinement and the simulation pipeline through an API key.',
+    requiresApiKey: true,
+    requiresBaseUrl: false,
+    requiresModel: true,
+    usesExecutable: false,
+    supportsPipeline: true,
+    supportsRefinement: true
+  },
+  {
+    id: 'codex_cli',
+    name: 'Codex CLI',
+    short: 'Use your local Codex installation for integrated brief refinement.',
+    description: 'Best when you already use Codex locally and want MiroFish to call it directly to improve the brief.',
+    requiresApiKey: false,
+    requiresBaseUrl: false,
+    requiresModel: false,
+    usesExecutable: true,
+    supportsPipeline: false,
+    supportsRefinement: true
+  },
+  {
+    id: 'claude_code_cli',
+    name: 'Claude Code CLI',
+    short: 'Use your local Claude Code installation for integrated brief refinement.',
+    description: 'Best when you already use Claude Code locally and want native refinement without copy-paste.',
+    requiresApiKey: false,
+    requiresBaseUrl: false,
+    requiresModel: false,
+    usesExecutable: true,
+    supportsPipeline: false,
+    supportsRefinement: true
+  }
+]
+
 const selectedScenario = ref('pricing')
+const selectedProvider = ref('openai')
 const files = ref([])
 const loading = ref(false)
 const error = ref('')
 const helperMessage = ref('')
+const providerError = ref('')
+const providerLoading = ref(false)
+const refineLoading = ref(false)
+const providerStatus = ref(null)
+const refinedBrief = ref('')
 const isDragOver = ref(false)
 const fileInput = ref(null)
+const providerForm = ref({
+  model_name: '',
+  base_url: '',
+  api_key: '',
+  executable: 'codex'
+})
 
 const brief = ref({ ...scenarios[0].defaults })
 
 const currentScenario = computed(() => {
   return scenarios.find((scenario) => scenario.id === selectedScenario.value) || scenarios[0]
+})
+
+const currentProvider = computed(() => {
+  return providerOptions.find((provider) => provider.id === selectedProvider.value) || providerOptions[1]
 })
 
 const simulationRequirement = computed(() => {
@@ -383,20 +517,87 @@ const simulationRequirement = computed(() => {
     .join('\n\n')
 })
 
-const codexPrompt = computed(() => {
-  return `Help me turn this draft into a stronger simulation brief for MiroFish.\n\nScenario type: ${currentScenario.value.name}\n\nDraft brief:\n${simulationRequirement.value || '(empty)'}\n\nPlease:\n1. Rewrite it into a sharper business scenario brief.\n2. Point out missing context or missing documents.\n3. Keep the final brief ready to paste into a simulation tool.`
+const finalSimulationRequirement = computed(() => {
+  return refinedBrief.value.trim() || simulationRequirement.value
 })
 
-const claudePrompt = computed(() => {
-  return `I am preparing a simulation brief for MiroFish.\n\nScenario type: ${currentScenario.value.name}\n\nDraft brief:\n${simulationRequirement.value || '(empty)'}\n\nPlease help me:\n1. Identify gaps in the scenario framing.\n2. Suggest the most important missing inputs.\n3. Rewrite the brief so it is concrete, stakeholder-aware, and ready to run.`
+const providerConfig = computed(() => {
+  const config = {
+    provider_type: selectedProvider.value
+  }
+
+  if (currentProvider.value.requiresModel && providerForm.value.model_name.trim()) {
+    config.model_name = providerForm.value.model_name.trim()
+  }
+  if (currentProvider.value.requiresBaseUrl && providerForm.value.base_url.trim()) {
+    config.base_url = providerForm.value.base_url.trim()
+  }
+  if (currentProvider.value.usesExecutable && providerForm.value.executable.trim()) {
+    config.executable = providerForm.value.executable.trim()
+  }
+
+  return config
 })
 
 const canSubmit = computed(() => {
-  return simulationRequirement.value.trim() !== '' && files.value.length > 0
+  return finalSimulationRequirement.value.trim() !== ''
+    && files.value.length > 0
+    && currentProvider.value.supportsPipeline
+    && providerIsReadyForPipeline.value
 })
 
 const briefHasContent = computed(() => {
   return Object.values(brief.value).some((value) => value.trim() !== '')
+})
+
+const providerCanValidate = computed(() => {
+  if (currentProvider.value.requiresApiKey) {
+    return Boolean(providerForm.value.api_key.trim())
+  }
+  return true
+})
+
+const providerCanRefine = computed(() => {
+  if (!currentProvider.value.supportsRefinement) {
+    return false
+  }
+  if (currentProvider.value.requiresApiKey) {
+    return Boolean(providerForm.value.api_key.trim()) && Boolean(providerForm.value.model_name.trim())
+  }
+  return true
+})
+
+const providerIsReadyForPipeline = computed(() => {
+  if (!currentProvider.value.supportsPipeline) {
+    return false
+  }
+  if (currentProvider.value.requiresApiKey && !providerForm.value.api_key.trim()) {
+    return false
+  }
+  if (currentProvider.value.requiresModel && !providerForm.value.model_name.trim()) {
+    return false
+  }
+  if (currentProvider.value.requiresBaseUrl && !providerForm.value.base_url.trim()) {
+    return false
+  }
+  return true
+})
+
+const providerStatusText = computed(() => {
+  if (!providerStatus.value) {
+    return ''
+  }
+  const health = providerStatus.value.healthcheck || {}
+  if (health.message) {
+    return health.message
+  }
+  if (health.executable_path) {
+    return `Executable found at ${health.executable_path}`
+  }
+  if (health.model_name) {
+    return `Ready with model ${health.model_name}`
+  }
+  return 'Provider check completed.'
 })
 
 function selectScenario(id) {
@@ -413,6 +614,31 @@ function selectScenario(id) {
   if (scenario) {
     brief.value = { ...scenario.defaults }
     helperMessage.value = ''
+  }
+}
+
+function selectProvider(id) {
+  selectedProvider.value = id
+  providerError.value = ''
+  providerStatus.value = null
+  refinedBrief.value = ''
+
+  if (id === 'codex_cli') {
+    providerForm.value.executable = 'codex'
+    providerForm.value.model_name = ''
+    providerForm.value.base_url = ''
+    providerForm.value.api_key = ''
+  } else if (id === 'claude_code_cli') {
+    providerForm.value.executable = 'claude'
+    providerForm.value.model_name = ''
+    providerForm.value.base_url = ''
+    providerForm.value.api_key = ''
+  } else if (id === 'openai') {
+    providerForm.value.executable = 'codex'
+    providerForm.value.base_url = ''
+  } else if (id === 'anthropic') {
+    providerForm.value.executable = 'codex'
+    providerForm.value.base_url = ''
   }
 }
 
@@ -457,20 +683,61 @@ function removeFile(index) {
   files.value.splice(index, 1)
 }
 
-async function copyPrompt(prompt) {
+async function runProviderCheck() {
   try {
-    await navigator.clipboard.writeText(prompt)
-    helperMessage.value = 'Prompt copied.'
+    providerLoading.value = true
+    providerError.value = ''
+    helperMessage.value = ''
+    const response = await validateProvider({
+      llm_config: providerConfig.value,
+      api_key: providerForm.value.api_key.trim() || undefined
+    })
+    providerStatus.value = response.data
+    helperMessage.value = 'Provider check completed.'
   } catch (err) {
-    helperMessage.value = 'Clipboard access is unavailable here. You can still copy the prompt manually from the preview.'
+    providerError.value = err.message || 'Provider check failed.'
+  } finally {
+    providerLoading.value = false
   }
+}
+
+async function runBriefRefinement() {
+  try {
+    refineLoading.value = true
+    providerError.value = ''
+    helperMessage.value = ''
+    const response = await refineBrief({
+      llm_config: providerConfig.value,
+      api_key: providerForm.value.api_key.trim() || undefined,
+      brief_input: {
+        scenario_type: currentScenario.value.name,
+        draft_brief: simulationRequirement.value
+      }
+    })
+    refinedBrief.value = response.data?.refined_brief || ''
+    helperMessage.value = refinedBrief.value ? 'Brief refined. The refined version will be used for the next run.' : 'No refined brief was returned.'
+  } catch (err) {
+    providerError.value = err.message || 'Brief refinement failed.'
+  } finally {
+    refineLoading.value = false
+  }
+}
+
+function clearRefinedBrief() {
+  refinedBrief.value = ''
+  helperMessage.value = ''
 }
 
 function startSimulation() {
   if (!canSubmit.value || loading.value) return
 
   import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
-    setPendingUpload(files.value, simulationRequirement.value)
+    setPendingUpload(
+      files.value,
+      finalSimulationRequirement.value,
+      providerConfig.value,
+      providerForm.value.api_key.trim()
+    )
     router.push({
       name: 'Process',
       params: { projectId: 'new' }
@@ -938,6 +1205,42 @@ function startSimulation() {
   font-weight: 700;
 }
 
+.provider-grid {
+  margin-bottom: 14px;
+}
+
+.provider-guidance {
+  margin-bottom: 14px;
+}
+
+.provider-fields {
+  margin-bottom: 14px;
+}
+
+.provider-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.secondary-btn {
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ghost-btn {
+  background: transparent;
+}
+
 .checklist-card ul {
   margin: 12px 0 0;
   padding-left: 18px;
@@ -962,12 +1265,20 @@ function startSimulation() {
   font-size: 0.92rem;
 }
 
+.input-group input,
 .input-group textarea {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px 14px;
   font-family: inherit;
   font-size: 0.95rem;
+}
+
+.input-group input {
+  min-height: 48px;
+}
+
+.input-group textarea {
   resize: vertical;
   min-height: 92px;
 }

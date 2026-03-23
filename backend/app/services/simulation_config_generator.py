@@ -16,10 +16,9 @@ from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 
-from openai import OpenAI
-
 from ..config import Config
 from ..utils.logger import get_logger
+from ..utils.llm_client import LLMClient
 from .zep_entity_reader import EntityNode, ZepEntityReader
 
 logger = get_logger('mirofish.simulation_config')
@@ -225,19 +224,27 @@ class SimulationConfigGenerator:
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model_name: Optional[str] = None
+        model_name: Optional[str] = None,
+        llm_client: Optional[LLMClient] = None,
+        provider_config: Optional[Dict[str, Any]] = None,
     ):
-        self.api_key = api_key or Config.LLM_API_KEY
-        self.base_url = base_url or Config.LLM_BASE_URL
-        self.model_name = model_name or Config.LLM_MODEL_NAME
-        
-        if not self.api_key:
-            raise ValueError("LLM_API_KEY 未配置")
-        
-        self.client = OpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url
+        self.llm_client = llm_client or LLMClient(
+            api_key=api_key,
+            base_url=base_url,
+            model=model_name,
+            provider_config=provider_config,
         )
+        capabilities = getattr(self.llm_client, "capabilities", None)
+        if capabilities is not None and not capabilities.supports_pipeline:
+            provider_type = getattr(self.llm_client, "provider_type", "unknown")
+            mode = getattr(self.llm_client, "mode", "unknown")
+            raise ValueError(
+                f"SimulationConfigGenerator requires a pipeline-capable LLM provider; got {provider_type} ({mode})"
+            )
+
+        self.api_key = getattr(self.llm_client, "api_key", None)
+        self.base_url = getattr(self.llm_client, "base_url", None) or base_url or Config.LLM_BASE_URL
+        self.model_name = getattr(self.llm_client, "model_name", None) or model_name or Config.LLM_MODEL_NAME
     
     def generate_config(
         self,
@@ -439,25 +446,20 @@ class SimulationConfigGenerator:
         
         for attempt in range(max_attempts):
             try:
-                response = self.client.chat.completions.create(
-                    model=self.model_name,
+                result = self.llm_client.chat_with_metadata(
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt}
                     ],
                     response_format={"type": "json_object"},
-                    temperature=0.7 - (attempt * 0.1)  # 每次重试降低温度
-                    # 不设置max_tokens，让LLM自由发挥
+                    temperature=0.7 - (attempt * 0.1)
                 )
-                
-                content = response.choices[0].message.content
-                finish_reason = response.choices[0].finish_reason
-                
-                # 检查是否被截断
-                if finish_reason == 'length':
-                    logger.warning(f"LLM输出被截断 (attempt {attempt+1})")
+                content = result.content
+
+                if result.finish_reason == 'length':
+                    logger.warning(f"LLM output was truncated (attempt {attempt+1})")
                     content = self._fix_truncated_json(content)
-                
+
                 # 尝试解析JSON
                 try:
                     return json.loads(content)
@@ -984,4 +986,3 @@ class SimulationConfigGenerator:
                 "influence_weight": 1.0
             }
     
-

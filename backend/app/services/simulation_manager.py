@@ -13,6 +13,8 @@ from datetime import datetime
 from enum import Enum
 
 from ..config import Config
+from ..llm.project_config import resolve_project_provider_config
+from ..models.project import ProjectManager
 from ..utils.logger import get_logger
 from .zep_entity_reader import ZepEntityReader, FilteredEntities
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
@@ -265,6 +267,11 @@ class SimulationManager:
         try:
             state.status = SimulationStatus.PREPARING
             self._save_simulation_state(state)
+
+            project = ProjectManager.get_project(state.project_id)
+            if not project:
+                raise ValueError(f"Project not found: {state.project_id}")
+            provider_config = resolve_project_provider_config(project)
             
             sim_dir = self._get_simulation_dir(simulation_id)
             
@@ -312,7 +319,10 @@ class SimulationManager:
                 )
             
             # 传入graph_id以启用Zep检索功能，获取更丰富的上下文
-            generator = OasisProfileGenerator(graph_id=state.graph_id)
+            generator = OasisProfileGenerator(
+                graph_id=state.graph_id,
+                provider_config=provider_config,
+            )
             
             def profile_progress(current, total, msg):
                 if progress_callback:
@@ -389,7 +399,7 @@ class SimulationManager:
                     total=3
                 )
             
-            config_generator = SimulationConfigGenerator()
+            config_generator = SimulationConfigGenerator(provider_config=provider_config)
             
             if progress_callback:
                 progress_callback(

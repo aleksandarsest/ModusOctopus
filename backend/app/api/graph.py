@@ -4,12 +4,18 @@
 """
 
 import os
+import json
 import traceback
 import threading
+from typing import Any, Dict, Optional
 from flask import request, jsonify
 
 from . import graph_bp
 from ..config import Config
+from ..llm.factory import LLMProviderFactory
+from ..llm.project_config import build_project_llm_metadata, resolve_project_provider_config
+from ..models.project_secrets import ProjectSecretsStore
+from ..utils.llm_client import LLMClient
 from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import GraphBuilderService
 from ..services.text_processor import TextProcessor
@@ -20,6 +26,63 @@ from ..models.project import ProjectManager, ProjectStatus
 
 # 获取日志器
 logger = get_logger('mirofish.api')
+
+
+def _read_llm_payload(data: Dict[str, Any]) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    raw_config = data.get("llm_config")
+    if raw_config is None:
+        raw_config = {
+            "provider_type": data.get("provider_type"),
+            "model_name": data.get("model_name"),
+            "base_url": data.get("base_url"),
+            "executable": data.get("executable"),
+            "working_directory": data.get("working_directory"),
+        }
+        raw_config = {key: value for key, value in raw_config.items() if value not in (None, "")}
+
+    if not raw_config:
+        return None, None
+
+    api_key = data.get("api_key")
+    return dict(raw_config), api_key
+
+
+def _read_llm_payload_from_form() -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    llm_config_json = request.form.get("llm_config_json")
+    raw_config = json.loads(llm_config_json) if llm_config_json else None
+    api_key = request.form.get("llm_api_key") or None
+    return raw_config, api_key
+
+
+def _persist_project_llm_config(project, raw_config: Dict[str, Any], api_key: Optional[str]) -> Dict[str, Any]:
+    secret_metadata = None
+    provider_type = raw_config.get("provider_type")
+    runtime_config = dict(raw_config)
+    existing_secret = ProjectSecretsStore.get_project_api_secret(project.project_id)
+
+    if api_key:
+        secret_metadata = ProjectSecretsStore.save_project_api_secret(
+            project.project_id,
+            provider_type=provider_type,
+            api_key=api_key,
+        )
+        runtime_config["api_key"] = api_key
+    elif provider_type in {"codex_cli", "claude_code_cli"}:
+        ProjectSecretsStore.delete_project_api_secret(project.project_id)
+    elif existing_secret and existing_secret.get("provider_type") == provider_type and existing_secret.get("api_key"):
+        runtime_config["api_key"] = existing_secret["api_key"]
+        secret_metadata = {
+            "masked_api_key": existing_secret.get("masked_api_key") or ProjectSecretsStore.mask_secret(existing_secret["api_key"])
+        }
+    else:
+        ProjectSecretsStore.delete_project_api_secret(project.project_id)
+
+    project.llm_config = build_project_llm_metadata(
+        runtime_config,
+        masked_api_key=secret_metadata["masked_api_key"] if secret_metadata else None,
+    )
+    ProjectManager.save_project(project)
+    return project.llm_config
 
 
 def allowed_file(filename: str) -> bool:
@@ -49,6 +112,109 @@ def get_project(project_id: str):
         "success": True,
         "data": project.to_dict()
     })
+
+
+@graph_bp.route('/project/<project_id>/llm-config', methods=['POST'])
+def save_project_llm_config(project_id: str):
+    """Save project-level LLM provider settings."""
+    try:
+        project = ProjectManager.get_project(project_id)
+        if not project:
+            return jsonify({
+                "success": False,
+                "error": f"Project not found: {project_id}"
+            }), 404
+
+        raw_config, api_key = _read_llm_payload(request.get_json() or {})
+        if not raw_config:
+            return jsonify({
+                "success": False,
+                "error": "Please provide llm_config"
+            }), 400
+
+        metadata = _persist_project_llm_config(project, raw_config, api_key)
+        return jsonify({
+            "success": True,
+            "data": metadata
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to save project LLM config: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@graph_bp.route('/providers/validate', methods=['POST'])
+def validate_provider():
+    """Validate an inline provider configuration and return capabilities."""
+    try:
+        raw_config, api_key = _read_llm_payload(request.get_json() or {})
+        if not raw_config:
+            return jsonify({
+                "success": False,
+                "error": "Please provide llm_config"
+            }), 400
+
+        runtime_config = dict(raw_config)
+        if api_key:
+            runtime_config["api_key"] = api_key
+
+        provider = LLMProviderFactory.create(runtime_config)
+        metadata = build_project_llm_metadata(
+            runtime_config,
+            masked_api_key=ProjectSecretsStore.mask_secret(api_key) if api_key else None,
+        )
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "llm_config": metadata,
+                "healthcheck": provider.healthcheck(),
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Provider validation failed: {str(e)}"
+        }), 400
+
+
+@graph_bp.route('/providers/refine-brief', methods=['POST'])
+def refine_brief():
+    """Refine the simulation brief using the selected provider."""
+    try:
+        data = request.get_json() or {}
+        brief_input = data.get("brief_input")
+        if not brief_input:
+            return jsonify({
+                "success": False,
+                "error": "Please provide brief_input"
+            }), 400
+
+        raw_config, api_key = _read_llm_payload(data)
+        if not raw_config:
+            return jsonify({
+                "success": False,
+                "error": "Please provide llm_config"
+            }), 400
+
+        runtime_config = dict(raw_config)
+        if api_key:
+            runtime_config["api_key"] = api_key
+
+        llm_client = LLMClient(provider_config=runtime_config)
+        result = llm_client.refine_brief(brief_input)
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Brief refinement failed: {str(e)}"
+        }), 400
 
 
 @graph_bp.route('/project/list', methods=['GET'])
@@ -170,11 +336,22 @@ def generate_ontology():
                 "success": False,
                 "error": "Please upload at least one document file"
             }), 400
+
+        raw_llm_config, api_key = _read_llm_payload_from_form()
         
         # 创建项目
         project = ProjectManager.create_project(name=project_name)
         project.simulation_requirement = simulation_requirement
         logger.info(f"创建项目: {project.project_id}")
+
+        if raw_llm_config:
+            metadata = _persist_project_llm_config(project, raw_llm_config, api_key)
+            if not metadata.get("supports_pipeline"):
+                ProjectManager.delete_project(project.project_id)
+                return jsonify({
+                    "success": False,
+                    "error": "The selected provider supports brief refinement but not the full simulation pipeline."
+                }), 400
         
         # 保存文件并提取文本
         document_texts = []
@@ -213,7 +390,10 @@ def generate_ontology():
         
         # 生成本体
         logger.info("调用 LLM 生成本体定义...")
-        generator = OntologyGenerator()
+        generator = OntologyGenerator(
+            llm_client=LLMClient(provider_config=resolve_project_provider_config(project))
+            if project.llm_config else None
+        )
         ontology = generator.generate(
             document_texts=document_texts,
             simulation_requirement=simulation_requirement,

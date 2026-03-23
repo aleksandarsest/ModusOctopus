@@ -9,6 +9,7 @@ from flask import request, jsonify, send_file
 
 from . import simulation_bp
 from ..config import Config
+from ..llm.project_config import resolve_project_provider_config
 from ..services.zep_entity_reader import ZepEntityReader
 from ..services.oasis_profile_generator import OasisProfileGenerator
 from ..services.simulation_manager import SimulationManager, SimulationStatus
@@ -1395,6 +1396,7 @@ def generate_profiles():
         entity_types = data.get('entity_types')
         use_llm = data.get('use_llm', True)
         platform = data.get('platform', 'reddit')
+        project = ProjectManager.get_project(data.get('project_id')) if data.get('project_id') else None
         
         reader = ZepEntityReader()
         filtered = reader.filter_defined_entities(
@@ -1409,7 +1411,9 @@ def generate_profiles():
                 "error": "No matching entities were found"
             }), 400
         
-        generator = OasisProfileGenerator()
+        generator = OasisProfileGenerator(
+            provider_config=resolve_project_provider_config(project) if project else None
+        )
         profiles = generator.generate_profiles_from_entities(
             entities=filtered.entities,
             use_llm=use_llm

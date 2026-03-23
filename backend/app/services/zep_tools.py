@@ -421,21 +421,36 @@ class ZepToolsService:
     MAX_RETRIES = 3
     RETRY_DELAY = 2.0
     
-    def __init__(self, api_key: Optional[str] = None, llm_client: Optional[LLMClient] = None):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        llm_client: Optional[LLMClient] = None,
+        provider_config: Optional[Dict[str, Any]] = None,
+    ):
         self.api_key = api_key or Config.ZEP_API_KEY
         if not self.api_key:
             raise ValueError("ZEP_API_KEY 未配置")
         
         self.client = Zep(api_key=self.api_key)
         # LLM客户端用于InsightForge生成子问题
-        self._llm_client = llm_client
+        self._provider_config = dict(provider_config or {})
+        self._llm_client = llm_client or (
+            LLMClient(provider_config=self._provider_config) if self._provider_config else None
+        )
+        capabilities = getattr(self._llm_client, "capabilities", None) if self._llm_client is not None else None
+        if capabilities is not None and not capabilities.supports_pipeline:
+            provider_type = getattr(self._llm_client, "provider_type", "unknown")
+            mode = getattr(self._llm_client, "mode", "unknown")
+            raise ValueError(
+                f"ZepToolsService requires a pipeline-capable LLM provider; got {provider_type} ({mode})"
+            )
         logger.info("ZepToolsService 初始化完成")
     
     @property
     def llm(self) -> LLMClient:
         """延迟初始化LLM客户端"""
         if self._llm_client is None:
-            self._llm_client = LLMClient()
+            self._llm_client = LLMClient(provider_config=self._provider_config)
         return self._llm_client
     
     def _call_with_retry(self, func, operation_name: str, max_retries: int = None):
