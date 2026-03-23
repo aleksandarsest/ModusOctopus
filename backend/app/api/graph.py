@@ -16,8 +16,11 @@ from ..llm.factory import LLMProviderFactory
 from ..llm.project_config import build_project_llm_metadata, resolve_project_provider_config
 from ..models.project_secrets import ProjectSecretsStore
 from ..utils.llm_client import LLMClient
+from ..graph_store.project_store import resolve_graph_store_for_project, resolve_graph_store_for_graph_id
+from ..graph_store.local_store import LocalGraphStore
 from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import GraphBuilderService
+from ..services.local_graph_builder import LocalGraphBuilder
 from ..services.text_processor import TextProcessor
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
@@ -91,6 +94,13 @@ def allowed_file(filename: str) -> bool:
         return False
     ext = os.path.splitext(filename)[1].lower().lstrip('.')
     return ext in Config.ALLOWED_EXTENSIONS
+
+
+def _read_graph_backend(raw_value: Optional[str]) -> str:
+    graph_backend = (raw_value or "local").strip().lower()
+    if graph_backend not in {"local", "zep"}:
+        raise ValueError("graph_backend must be either 'local' or 'zep'")
+    return graph_backend
 
 
 # ============== 项目管理接口 ==============
@@ -319,6 +329,7 @@ def generate_ontology():
         simulation_requirement = request.form.get('simulation_requirement', '')
         project_name = request.form.get('project_name', 'Unnamed Project')
         additional_context = request.form.get('additional_context', '')
+        graph_backend = _read_graph_backend(request.form.get('graph_backend'))
         
         logger.debug(f"项目名称: {project_name}")
         logger.debug(f"模拟需求: {simulation_requirement[:100]}...")
@@ -340,7 +351,7 @@ def generate_ontology():
         raw_llm_config, api_key = _read_llm_payload_from_form()
         
         # 创建项目
-        project = ProjectManager.create_project(name=project_name)
+        project = ProjectManager.create_project(name=project_name, graph_backend=graph_backend)
         project.simulation_requirement = simulation_requirement
         logger.info(f"创建项目: {project.project_id}")
 
@@ -462,17 +473,6 @@ def build_graph():
     try:
         logger.info("=== 开始构建图谱 ===")
         
-        # 检查配置
-        errors = []
-        if not Config.ZEP_API_KEY:
-            errors.append("ZEP_API_KEY未配置")
-        if errors:
-            logger.error(f"配置错误: {errors}")
-            return jsonify({
-                "success": False,
-                "error": "Configuration error: " + "; ".join(errors)
-            }), 500
-        
         # 解析请求
         data = request.get_json() or {}
         project_id = data.get('project_id')
@@ -491,6 +491,12 @@ def build_graph():
                 "success": False,
                 "error": f"Project not found: {project_id}"
             }), 404
+
+        if project.graph_backend == "zep" and not Config.ZEP_API_KEY:
+            return jsonify({
+                "success": False,
+                "error": "ZEP_API_KEY is required for the Zep graph backend"
+            }), 500
         
         # 检查项目状态
         force = data.get('force', False)  # 强制重新构建
@@ -561,88 +567,122 @@ def build_graph():
                     message="Initializing graph build service..."
                 )
                 
-                # 创建图谱构建服务
-                builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
-                
-                # 分块
+                graph_store = resolve_graph_store_for_project(project)
+
                 task_manager.update_task(
                     task_id,
-                    message="Chunking text...",
-                    progress=5
-                )
-                chunks = TextProcessor.split_text(
-                    text, 
-                    chunk_size=chunk_size, 
-                    overlap=chunk_overlap
-                )
-                total_chunks = len(chunks)
-                
-                # 创建图谱
-                task_manager.update_task(
-                    task_id,
-                    message="Creating Zep graph...",
+                    message=f"Creating {project.graph_backend} graph...",
                     progress=10
                 )
-                graph_id = builder.create_graph(name=graph_name)
-                
-                # 更新项目的graph_id
+                graph = graph_store.create_graph(
+                    graph_name,
+                    description=f"{project.graph_backend} graph for {project.name}",
+                    metadata={"project_id": project.project_id},
+                )
+                graph_id = graph.graph_id
+
                 project.graph_id = graph_id
                 ProjectManager.save_project(project)
-                
-                # 设置本体
+
                 task_manager.update_task(
                     task_id,
                     message="Applying ontology definition...",
                     progress=15
                 )
-                builder.set_ontology(graph_id, ontology)
-                
-                # 添加文本（progress_callback 签名是 (msg, progress_ratio)）
-                def add_progress_callback(msg, progress_ratio):
-                    progress = 15 + int(progress_ratio * 40)  # 15% - 55%
+                graph_store.apply_ontology(graph_id, ontology)
+
+                if project.graph_backend == "local":
                     task_manager.update_task(
                         task_id,
-                        message=msg,
-                        progress=progress
+                        message="Extracting local graph entities and relationships...",
+                        progress=25
                     )
-                
-                task_manager.update_task(
-                    task_id,
-                    message=f"Adding {total_chunks} text chunks...",
-                    progress=15
-                )
-                
-                episode_uuids = builder.add_text_batches(
-                    graph_id, 
-                    chunks,
-                    batch_size=3,
-                    progress_callback=add_progress_callback
-                )
-                
-                # 等待Zep处理完成（查询每个episode的processed状态）
-                task_manager.update_task(
-                    task_id,
-                    message="Waiting for Zep to process data...",
-                    progress=55
-                )
-                
-                def wait_progress_callback(msg, progress_ratio):
-                    progress = 55 + int(progress_ratio * 35)  # 55% - 90%
+                    local_builder = LocalGraphBuilder(
+                        llm_client=LLMClient(provider_config=resolve_project_provider_config(project))
+                        if project.llm_config else None
+                    )
+                    built = local_builder.build(
+                        text=text,
+                        ontology=ontology,
+                        chunk_size=chunk_size,
+                        chunk_overlap=chunk_overlap,
+                    )
+                    total_chunks = len(built["chunks"])
+                    graph_store.ingest_chunks(
+                        graph_id,
+                        [chunk["text"] for chunk in built["chunks"]],
+                        batch_size=3,
+                    )
+                    if isinstance(graph_store, LocalGraphStore):
+                        graph_store.replace_graph_data(
+                            graph_id,
+                            nodes=built["nodes"],
+                            edges=built["edges"],
+                        )
                     task_manager.update_task(
                         task_id,
-                        message=msg,
-                        progress=progress
+                        message="Fetching graph data...",
+                        progress=95
                     )
-                
-                builder._wait_for_episodes(episode_uuids, wait_progress_callback)
-                
-                # 获取图谱数据
-                task_manager.update_task(
-                    task_id,
-                    message="Fetching graph data...",
-                    progress=95
-                )
-                graph_data = builder.get_graph_data(graph_id)
+                    graph_data = graph_store.get_graph_data(graph_id)
+                else:
+                    builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+
+                    task_manager.update_task(
+                        task_id,
+                        message="Chunking text...",
+                        progress=5
+                    )
+                    chunks = TextProcessor.split_text(
+                        text,
+                        chunk_size=chunk_size,
+                        overlap=chunk_overlap
+                    )
+                    total_chunks = len(chunks)
+
+                    def add_progress_callback(msg, progress_ratio):
+                        progress = 15 + int(progress_ratio * 40)
+                        task_manager.update_task(
+                            task_id,
+                            message=msg,
+                            progress=progress
+                        )
+
+                    task_manager.update_task(
+                        task_id,
+                        message=f"Adding {total_chunks} text chunks...",
+                        progress=15
+                    )
+
+                    episode_uuids = builder.add_text_batches(
+                        graph_id,
+                        chunks,
+                        batch_size=3,
+                        progress_callback=add_progress_callback
+                    )
+
+                    task_manager.update_task(
+                        task_id,
+                        message="Waiting for Zep to process data...",
+                        progress=55
+                    )
+
+                    def wait_progress_callback(msg, progress_ratio):
+                        progress = 55 + int(progress_ratio * 35)
+                        task_manager.update_task(
+                            task_id,
+                            message=msg,
+                            progress=progress
+                        )
+
+                    builder._wait_for_episodes(episode_uuids, wait_progress_callback)
+
+                    task_manager.update_task(
+                        task_id,
+                        message="Fetching graph data...",
+                        progress=95
+                    )
+                    graph_data = graph_store.get_graph_data(graph_id)
                 
                 # 更新项目状态
                 project.status = ProjectStatus.GRAPH_COMPLETED
@@ -747,18 +787,18 @@ def get_graph_data(graph_id: str):
     获取图谱数据（节点和边）
     """
     try:
-        if not Config.ZEP_API_KEY:
+        graph_store, project = resolve_graph_store_for_graph_id(graph_id)
+        if project and project.graph_backend == "zep" and not Config.ZEP_API_KEY:
             return jsonify({
                 "success": False,
                 "error": "ZEP_API_KEY is not configured"
             }), 500
-        
-        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
-        graph_data = builder.get_graph_data(graph_id)
+
+        graph_data = graph_store.get_graph_data(graph_id)
         
         return jsonify({
             "success": True,
-            "data": graph_data
+            "data": graph_data.__dict__ if hasattr(graph_data, "__dict__") else graph_data
         })
         
     except Exception as e:
@@ -775,14 +815,20 @@ def delete_graph(graph_id: str):
     删除Zep图谱
     """
     try:
-        if not Config.ZEP_API_KEY:
+        graph_store, project = resolve_graph_store_for_graph_id(graph_id)
+        if project and project.graph_backend == "zep" and not Config.ZEP_API_KEY:
             return jsonify({
                 "success": False,
                 "error": "ZEP_API_KEY is not configured"
             }), 500
-        
-        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
-        builder.delete_graph(graph_id)
+
+        graph_store.delete_graph(graph_id)
+        if project:
+            project.graph_id = None
+            project.graph_build_task_id = None
+            if project.status == ProjectStatus.GRAPH_COMPLETED:
+                project.status = ProjectStatus.ONTOLOGY_GENERATED
+            ProjectManager.save_project(project)
         
         return jsonify({
             "success": True,

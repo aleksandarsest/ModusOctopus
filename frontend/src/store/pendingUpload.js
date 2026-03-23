@@ -7,14 +7,16 @@ import { reactive } from 'vue'
 const state = reactive({
   files: [],
   simulationRequirement: '',
+  graphBackend: 'local',
   llmConfig: null,
   llmApiKey: '',
   isPending: false
 })
 
-export function setPendingUpload(files, requirement, llmConfig = null, llmApiKey = '') {
+export function setPendingUpload(files, requirement, graphBackend = 'local', llmConfig = null, llmApiKey = '') {
   state.files = files
   state.simulationRequirement = requirement
+  state.graphBackend = graphBackend
   state.llmConfig = llmConfig
   state.llmApiKey = llmApiKey
   state.isPending = true
@@ -24,6 +26,7 @@ export function getPendingUpload() {
   return {
     files: state.files,
     simulationRequirement: state.simulationRequirement,
+    graphBackend: state.graphBackend,
     llmConfig: state.llmConfig,
     llmApiKey: state.llmApiKey,
     isPending: state.isPending
@@ -33,6 +36,7 @@ export function getPendingUpload() {
 export function clearPendingUpload() {
   state.files = []
   state.simulationRequirement = ''
+  state.graphBackend = 'local'
   state.llmConfig = null
   state.llmApiKey = ''
   state.isPending = false

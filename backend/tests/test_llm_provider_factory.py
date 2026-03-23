@@ -110,18 +110,18 @@ class TestLLMProviderFactory(unittest.TestCase):
         self.assertTrue(openai_compatible.capabilities.supports_refinement)
         self.assertTrue(openai_compatible.capabilities.supports_chat_json)
 
-    def test_factory_returns_cli_providers_without_pipeline_support(self):
+    def test_factory_returns_cli_providers_with_pipeline_support(self):
         codex = LLMProviderFactory.create({"provider_type": "codex_cli"})
         self.assertIsInstance(codex, CodexCLIProvider)
         self.assertEqual(codex.capabilities, CLI_PROVIDER_CAPABILITIES)
-        self.assertFalse(codex.capabilities.supports_pipeline)
+        self.assertTrue(codex.capabilities.supports_pipeline)
         self.assertTrue(codex.capabilities.supports_refinement)
-        self.assertFalse(codex.capabilities.supports_chat_json)
+        self.assertTrue(codex.capabilities.supports_chat_json)
 
         claude = LLMProviderFactory.create({"provider_type": "claude_code_cli"})
         self.assertIsInstance(claude, ClaudeCodeCLIProvider)
         self.assertEqual(claude.capabilities, CLI_PROVIDER_CAPABILITIES)
-        self.assertFalse(claude.capabilities.supports_pipeline)
+        self.assertTrue(claude.capabilities.supports_pipeline)
         self.assertTrue(claude.capabilities.supports_refinement)
 
     def test_cli_healthcheck_reports_missing_executable_cleanly(self):
@@ -133,7 +133,7 @@ class TestLLMProviderFactory(unittest.TestCase):
         self.assertEqual(health["provider_type"], "codex_cli")
         self.assertEqual(health["mode"], "cli")
         self.assertIn("not found", health["message"])
-        self.assertFalse(health["supports_pipeline"])
+        self.assertTrue(health["supports_pipeline"])
         self.assertTrue(health["supports_refinement"])
 
     def test_base_chat_json_does_not_force_openai_response_format(self):

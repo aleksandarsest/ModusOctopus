@@ -317,7 +317,7 @@
               <div class="detail-section">
                 <div class="detail-label">What this step does</div>
                 <div class="detail-content">
-                  Using the generated ontology, the app chunks your documents and calls the Zep API to build the knowledge graph and extract entities and relationships.
+                  Using the generated ontology, the app builds the project graph from your documents and extracts the entities and relationships used by simulation.
                 </div>
               </div>
               
@@ -585,6 +585,7 @@ const handleNewProject = async () => {
       formDataObj.append('files', file)
     })
     formDataObj.append('simulation_requirement', pending.simulationRequirement)
+    formDataObj.append('graph_backend', pending.graphBackend || 'local')
     
     // 调用本体生成 API
     const response = await generateOntology(formDataObj)

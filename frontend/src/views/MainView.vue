@@ -203,6 +203,7 @@ const handleNewProject = async () => {
     const formData = new FormData()
     pending.files.forEach(f => formData.append('files', f))
     formData.append('simulation_requirement', pending.simulationRequirement)
+    formData.append('graph_backend', pending.graphBackend || 'local')
     if (pending.llmConfig) {
       formData.append('llm_config_json', JSON.stringify(pending.llmConfig))
     }

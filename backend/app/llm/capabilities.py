@@ -22,8 +22,8 @@ API_PROVIDER_CAPABILITIES = LLMCapabilities(
 
 
 CLI_PROVIDER_CAPABILITIES = LLMCapabilities(
-    supports_pipeline=False,
+    supports_pipeline=True,
     supports_refinement=True,
-    supports_chat_json=False,
+    supports_chat_json=True,
     supports_healthcheck=True,
 )

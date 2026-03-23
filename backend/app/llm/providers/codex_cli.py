@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import subprocess
 import shutil
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from ...config import Config
 from ..capabilities import CLI_PROVIDER_CAPABILITIES, LLMCapabilities
-from .base import BaseLLMProvider
+from .base import BaseLLMProvider, LLMChatResult
 
 
 class CodexCLIProvider(BaseLLMProvider):
@@ -24,6 +24,54 @@ class CodexCLIProvider(BaseLLMProvider):
     @property
     def capabilities(self) -> LLMCapabilities:
         return CLI_PROVIDER_CAPABILITIES
+
+    def _run_cli(self, prompt: str) -> str:
+        command = [
+            self.executable,
+            "exec",
+            "--skip-git-repo-check",
+            "--sandbox",
+            "read-only",
+            "--color",
+            "never",
+            prompt,
+        ]
+        if self.working_directory:
+            command[2:2] = ["-C", self.working_directory]
+
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=Config.CLI_PROVIDER_TIMEOUT_SECONDS,
+                cwd=self.working_directory or None,
+                check=True,
+            )
+        except FileNotFoundError as exc:
+            raise ValueError(f"Executable '{self.executable}' was not found on PATH") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise ValueError("Codex CLI timed out while executing the request") from exc
+        except subprocess.CalledProcessError as exc:
+            stderr = (exc.stderr or "").strip()
+            raise ValueError(stderr or "Codex CLI request failed") from exc
+
+        return (result.stdout or "").strip()
+
+    def chat_with_metadata(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        response_format: Optional[Dict[str, Any]] = None,
+    ) -> LLMChatResult:
+        del temperature, max_tokens, response_format
+        prompt = "\n\n".join(
+            f"{message.get('role', 'user').upper()}:\n{message.get('content', '')}"
+            for message in messages
+        )
+        content = self._run_cli(prompt)
+        return LLMChatResult(content=content, finish_reason="stop")
 
     def healthcheck(self) -> Dict[str, Any]:
         executable_path = shutil.which(self.executable)
@@ -55,38 +103,8 @@ class CodexCLIProvider(BaseLLMProvider):
             "business scenario brief. Do not use tools. Reply with plain text only.\n\n"
             f"{self._brief_input_to_text(brief_input)}"
         )
-        command = [
-            self.executable,
-            "exec",
-            "--skip-git-repo-check",
-            "--sandbox",
-            "read-only",
-            "--color",
-            "never",
-            prompt,
-        ]
-        if self.working_directory:
-            command[2:2] = ["-C", self.working_directory]
-
-        try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=Config.CLI_PROVIDER_TIMEOUT_SECONDS,
-                cwd=self.working_directory or None,
-                check=True,
-            )
-        except FileNotFoundError as exc:
-            raise ValueError(f"Executable '{self.executable}' was not found on PATH") from exc
-        except subprocess.TimeoutExpired as exc:
-            raise ValueError("Codex CLI timed out while refining the brief") from exc
-        except subprocess.CalledProcessError as exc:
-            stderr = (exc.stderr or "").strip()
-            raise ValueError(stderr or "Codex CLI failed to refine the brief") from exc
-
         return {
             "provider_type": self.provider_type,
             "mode": self.mode,
-            "refined_brief": (result.stdout or "").strip(),
+            "refined_brief": self._run_cli(prompt),
         }

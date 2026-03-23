@@ -10,14 +10,26 @@ from flask import request, jsonify, send_file
 
 from . import report_bp
 from ..config import Config
+from ..graph_store.project_store import resolve_graph_store_for_project, resolve_graph_store_for_graph_id
 from ..llm.project_config import resolve_project_provider_config
 from ..services.report_agent import ReportAgent, ReportManager, ReportStatus
+from ..services.graph_tools import LocalGraphToolsService
 from ..services.simulation_manager import SimulationManager
 from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
 from ..utils.logger import get_logger
 
 logger = get_logger('modusoctopus.api.report')
+
+
+def _resolve_report_tools(project):
+    if getattr(project, "graph_backend", None) == "local":
+        return LocalGraphToolsService(
+            graph_store=resolve_graph_store_for_project(project),
+        )
+    from ..services.zep_tools import ZepToolsService
+
+    return ZepToolsService()
 
 
 # ============== Report generation ==============
@@ -137,6 +149,7 @@ def generate_report():
                     simulation_id=simulation_id,
                     simulation_requirement=simulation_requirement,
                     provider_config=resolve_project_provider_config(project),
+                    zep_tools=_resolve_report_tools(project),
                 )
                 
                 # 进度回调
@@ -544,6 +557,7 @@ def chat_with_report_agent():
             simulation_id=simulation_id,
             simulation_requirement=simulation_requirement,
             provider_config=resolve_project_provider_config(project),
+            zep_tools=_resolve_report_tools(project),
         )
         
         result = agent.chat(message=message, chat_history=chat_history)
@@ -955,9 +969,12 @@ def search_graph_tool():
                 "error": "Please provide graph_id and query"
             }), 400
         
-        from ..services.zep_tools import ZepToolsService
-        
-        tools = ZepToolsService()
+        _graph_store, _project = resolve_graph_store_for_graph_id(graph_id)
+        if _project:
+            tools = _resolve_report_tools(_project)
+        else:
+            from ..services.zep_tools import ZepToolsService
+            tools = ZepToolsService()
         result = tools.search_graph(
             graph_id=graph_id,
             query=query,
@@ -999,9 +1016,12 @@ def get_graph_statistics_tool():
                 "error": "Please provide graph_id"
             }), 400
         
-        from ..services.zep_tools import ZepToolsService
-        
-        tools = ZepToolsService()
+        _graph_store, _project = resolve_graph_store_for_graph_id(graph_id)
+        if _project:
+            tools = _resolve_report_tools(_project)
+        else:
+            from ..services.zep_tools import ZepToolsService
+            tools = ZepToolsService()
         result = tools.get_graph_statistics(graph_id)
         
         return jsonify({

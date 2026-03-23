@@ -1,11 +1,11 @@
 """
-Backend-agnostic graph store contract.
+Abstract graph-store contract.
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 from .models import (
     GraphContext,
@@ -18,49 +18,39 @@ from .models import (
 
 
 class GraphStore(ABC):
-    """Contract for graph backends."""
-
-    backend_name: str = "unknown"
-
-    @property
-    def name(self) -> str:
-        return self.backend_name
+    backend: str = "unknown"
 
     @abstractmethod
     def create_graph(
         self,
         name: str,
-        description: str = "",
+        *,
+        description: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> GraphMetadata:
-        raise NotImplementedError
+        """Create a new graph."""
 
     @abstractmethod
     def get_graph(self, graph_id: str) -> GraphMetadata:
-        raise NotImplementedError
+        """Return graph metadata."""
 
     @abstractmethod
     def apply_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
-        raise NotImplementedError
+        """Apply ontology to a graph."""
 
     @abstractmethod
     def ingest_chunks(
         self,
         graph_id: str,
-        chunks: Sequence[str],
+        chunks: List[str],
         *,
         batch_size: int = 3,
-        progress_callback: Optional[Callable[[str, float], None]] = None,
     ) -> GraphIngestionResult:
-        raise NotImplementedError
+        """Ingest text chunks into a graph."""
 
     @abstractmethod
     def get_graph_data(self, graph_id: str) -> GraphData:
-        raise NotImplementedError
-
-    @abstractmethod
-    def delete_graph(self, graph_id: str) -> None:
-        raise NotImplementedError
+        """Fetch graph nodes/edges."""
 
     @abstractmethod
     def search(
@@ -71,11 +61,11 @@ class GraphStore(ABC):
         limit: int = 10,
         scope: str = "edges",
     ) -> GraphSearchResult:
-        raise NotImplementedError
+        """Search graph content."""
 
     @abstractmethod
     def get_graph_statistics(self, graph_id: str) -> GraphStatistics:
-        raise NotImplementedError
+        """Return graph-level statistics."""
 
     @abstractmethod
     def get_context(
@@ -85,4 +75,8 @@ class GraphStore(ABC):
         *,
         limit: int = 30,
     ) -> GraphContext:
-        raise NotImplementedError
+        """Return graph context for simulation/reporting."""
+
+    @abstractmethod
+    def delete_graph(self, graph_id: str) -> None:
+        """Delete a graph."""

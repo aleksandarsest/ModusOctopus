@@ -13,10 +13,11 @@ from datetime import datetime
 from enum import Enum
 
 from ..config import Config
+from ..graph_store.project_store import resolve_graph_store_for_project
 from ..llm.project_config import resolve_project_provider_config
 from ..models.project import ProjectManager
 from ..utils.logger import get_logger
-from .zep_entity_reader import ZepEntityReader, FilteredEntities
+from .graph_entity_reader import GraphEntityReader, FilteredEntities
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 from .simulation_config_generator import SimulationConfigGenerator, SimulationParameters
 
@@ -277,12 +278,13 @@ class SimulationManager:
             
             # ========== 阶段1: 读取并过滤实体 ==========
             if progress_callback:
-                progress_callback("reading", 0, "正在连接Zep图谱...")
-            
-            reader = ZepEntityReader()
-            
+                progress_callback("reading", 0, "Connecting to project graph...")
+
+            graph_store = resolve_graph_store_for_project(project)
+            reader = GraphEntityReader(graph_store)
+
             if progress_callback:
-                progress_callback("reading", 30, "正在读取节点数据...")
+                progress_callback("reading", 30, "Reading entity data...")
             
             filtered = reader.filter_defined_entities(
                 graph_id=state.graph_id,
@@ -296,14 +298,14 @@ class SimulationManager:
             if progress_callback:
                 progress_callback(
                     "reading", 100, 
-                    f"完成，共 {filtered.filtered_count} 个实体",
+                    f"Completed: {filtered.filtered_count} entities found",
                     current=filtered.filtered_count,
                     total=filtered.filtered_count
                 )
             
             if filtered.filtered_count == 0:
                 state.status = SimulationStatus.FAILED
-                state.error = "没有找到符合条件的实体，请检查图谱是否正确构建"
+                state.error = "No matching entities were found. Check whether the graph was built correctly."
                 self._save_simulation_state(state)
                 return state
             

@@ -800,7 +800,7 @@ const startPrepareSimulation = async () => {
       // 立即设置预期Agent总数（从prepare接口返回值获取）
       if (res.data.expected_entities_count) {
         expectedTotal.value = res.data.expected_entities_count
-        addLog(`Loaded ${res.data.expected_entities_count} entities from the Zep graph`)
+        addLog(`Loaded ${res.data.expected_entities_count} entities from the project graph`)
         if (res.data.entity_types && res.data.entity_types.length > 0) {
           addLog(`  └─ Entity types: ${res.data.entity_types.join(', ')}`)
         }

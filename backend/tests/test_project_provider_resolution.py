@@ -129,35 +129,35 @@ class TestProjectProviderResolution(unittest.TestCase):
         self.assertEqual(client.provider.provider_type, "openai_compatible")
         self.assertTrue(client.provider.capabilities.supports_pipeline)
 
-    def test_cli_provider_is_rejected_for_simulation_config_generator(self):
+    def test_cli_provider_is_allowed_for_simulation_config_generator(self):
         llm_client = LLMClient(
             provider=LLMProviderFactory.create({"provider_type": "codex_cli"})
         )
 
-        with self.assertRaises(ValueError):
-            SimulationConfigGenerator(llm_client=llm_client)
+        generator = SimulationConfigGenerator(llm_client=llm_client)
+        self.assertIs(generator.llm_client, llm_client)
 
-    def test_cli_provider_is_rejected_for_oasis_profile_generator(self):
+    def test_cli_provider_is_allowed_for_oasis_profile_generator(self):
         llm_client = LLMClient(
             provider=LLMProviderFactory.create({"provider_type": "claude_code_cli"})
         )
 
-        with self.assertRaises(ValueError):
-            OasisProfileGenerator(llm_client=llm_client)
+        generator = OasisProfileGenerator(llm_client=llm_client)
+        self.assertIs(generator.llm_client, llm_client)
 
-    def test_cli_provider_is_rejected_for_report_agent(self):
+    def test_cli_provider_is_allowed_for_report_agent(self):
         llm_client = LLMClient(
             provider=LLMProviderFactory.create({"provider_type": "codex_cli"})
         )
 
-        with self.assertRaises(ValueError):
-            ReportAgent(
-                graph_id="graph_123",
-                simulation_id="sim_123",
-                simulation_requirement="test",
-                llm_client=llm_client,
-                zep_tools=DummyZepTools(),
-            )
+        agent = ReportAgent(
+            graph_id="graph_123",
+            simulation_id="sim_123",
+            simulation_requirement="test",
+            llm_client=llm_client,
+            zep_tools=DummyZepTools(),
+        )
+        self.assertIs(agent.llm, llm_client)
 
     def test_simulation_config_generator_repairs_truncated_json(self):
         llm_client = LLMClient(

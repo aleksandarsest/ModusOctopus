@@ -886,7 +886,7 @@ class ReportAgent:
         simulation_id: str,
         simulation_requirement: str,
         llm_client: Optional[LLMClient] = None,
-        zep_tools: Optional[ZepToolsService] = None,
+        zep_tools: Optional[Any] = None,
         provider_config: Optional[Dict[str, Any]] = None,
     ):
         """

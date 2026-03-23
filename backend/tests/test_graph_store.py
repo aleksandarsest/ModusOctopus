@@ -3,6 +3,7 @@ from dataclasses import asdict
 from pathlib import Path
 import sys
 import types
+import tempfile
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
@@ -29,6 +30,7 @@ from app.graph_store import (
     GraphData,
     GraphIngestionResult,
     GraphMetadata,
+    LocalGraphStore,
     GraphSearchResult,
     GraphStatistics,
     GraphStoreFactory,
@@ -109,8 +111,8 @@ class DummyTools:
 
 
 class TestGraphStoreFactory(unittest.TestCase):
-    def test_resolve_backend_defaults_to_zep(self):
-        self.assertEqual(GraphStoreFactory.resolve_backend(None), "zep")
+    def test_resolve_backend_defaults_to_local(self):
+        self.assertEqual(GraphStoreFactory.resolve_backend(None), "local")
 
     def test_resolve_backend_normalizes_input(self):
         self.assertEqual(GraphStoreFactory.resolve_backend(" ZEP "), "zep")
@@ -125,8 +127,10 @@ class TestGraphStoreFactory(unittest.TestCase):
         self.assertIsInstance(store, ZepGraphStore)
 
     def test_create_rejects_local_backend_until_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            GraphStoreFactory.create(backend="local")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = GraphStoreFactory.create(backend="local", project_root=tmpdir)
+
+        self.assertIsInstance(store, LocalGraphStore)
 
 
 class TestZepGraphStore(unittest.TestCase):
@@ -166,6 +170,74 @@ class TestZepGraphStore(unittest.TestCase):
         self.assertEqual(graph.metadata["project_id"], "proj_2")
         self.assertEqual(graph.backend, "zep")
         self.assertEqual(asdict(graph)["backend"], "zep")
+
+
+class TestLocalGraphStore(unittest.TestCase):
+    def test_local_store_persists_snapshot_and_can_reload(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = LocalGraphStore(project_root=tmpdir)
+            graph = store.create_graph("Local Graph", metadata={"project_id": "proj_local"})
+            store.apply_ontology(graph.graph_id, {"entity_types": [{"name": "Person"}], "edge_types": []})
+            store.ingest_chunks(graph.graph_id, ["Alice leads the project", "Bob responds to Alice"], batch_size=2)
+            store.replace_graph_data(
+                graph.graph_id,
+                nodes=[
+                    {
+                        "uuid": "n1",
+                        "name": "Alice",
+                        "labels": ["Entity", "Person"],
+                        "summary": "Project lead",
+                        "attributes": {"role": "Lead"},
+                    },
+                    {
+                        "uuid": "n2",
+                        "name": "Bob",
+                        "labels": ["Entity", "Person"],
+                        "summary": "Responder",
+                        "attributes": {"role": "Staff"},
+                    },
+                ],
+                edges=[
+                    {
+                        "uuid": "e1",
+                        "name": "RESPONDS_TO",
+                        "fact": "Bob responds to Alice",
+                        "source_node_uuid": "n2",
+                        "target_node_uuid": "n1",
+                        "source_node_name": "Bob",
+                        "target_node_name": "Alice",
+                        "attributes": {},
+                    }
+                ],
+            )
+
+            reloaded = LocalGraphStore(project_root=tmpdir)
+            graph_data = reloaded.get_graph_data(graph.graph_id)
+            stats = reloaded.get_graph_statistics(graph.graph_id)
+            search = reloaded.search(graph.graph_id, "Alice")
+            context = reloaded.get_context(graph.graph_id, "How will Alice be perceived?")
+
+            self.assertEqual(reloaded.get_graph(graph.graph_id).metadata["project_id"], "proj_local")
+            self.assertEqual(graph_data.node_count, 2)
+            self.assertEqual(graph_data.edge_count, 1)
+            self.assertEqual(stats.entity_types["Person"], 2)
+            self.assertEqual(stats.relation_types["RESPONDS_TO"], 1)
+            self.assertEqual(search.total_count, 2)
+            self.assertEqual(context.total_entities, 2)
+            self.assertEqual(context.backend, "local")
+
+    def test_local_store_delete_graph_removes_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = LocalGraphStore(project_root=tmpdir)
+            graph = store.create_graph("Disposable Graph")
+            snapshot_path = Path(tmpdir) / f"{graph.graph_id}.json"
+            self.assertTrue(snapshot_path.exists())
+
+            store.delete_graph(graph.graph_id)
+
+            self.assertFalse(snapshot_path.exists())
+            with self.assertRaises(KeyError):
+                store.get_graph(graph.graph_id)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,6 @@
-"""
-Graph store seam for backend-agnostic graph operations.
-"""
-
 from .base import GraphStore
 from .factory import GraphStoreFactory
+from .local_store import LocalGraphStore
 from .models import (
     GraphContext,
     GraphData,
@@ -15,13 +12,14 @@ from .models import (
 from .zep_store import ZepGraphStore
 
 __all__ = [
-    "GraphStore",
-    "GraphStoreFactory",
-    "GraphMetadata",
+    "GraphContext",
     "GraphData",
+    "GraphIngestionResult",
+    "GraphMetadata",
     "GraphSearchResult",
     "GraphStatistics",
-    "GraphContext",
-    "GraphIngestionResult",
+    "LocalGraphStore",
+    "GraphStore",
+    "GraphStoreFactory",
     "ZepGraphStore",
 ]

@@ -135,12 +135,45 @@
             </div>
 
             <div class="console-divider">
+              <span>Choose your graph backend</span>
+            </div>
+
+            <div class="onboarding-step">
+              <div class="console-header">
+                <span class="console-label">02 / Graph backend</span>
+                <span class="console-meta">Local is the default. Zep stays optional.</span>
+              </div>
+
+              <div class="scenario-grid provider-grid">
+                <button
+                  v-for="backend in graphBackendOptions"
+                  :key="backend.id"
+                  type="button"
+                  class="scenario-card provider-card"
+                  :class="{ active: selectedGraphBackend === backend.id }"
+                  @click="selectGraphBackend(backend.id)"
+                >
+                  <span class="scenario-name">{{ backend.name }}</span>
+                  <span class="scenario-copy">{{ backend.short }}</span>
+                </button>
+              </div>
+
+              <div class="guidance-card provider-guidance">
+                <div class="guidance-title">{{ currentGraphBackend.name }}</div>
+                <p class="guidance-copy">{{ currentGraphBackend.description }}</p>
+                <div class="guidance-list">
+                  <span>{{ currentGraphBackend.capability }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="console-divider">
               <span>Choose your LLM provider</span>
             </div>
 
             <div class="onboarding-step">
               <div class="console-header">
-                <span class="console-label">02 / Provider configuration</span>
+                <span class="console-label">03 / Provider configuration</span>
                 <span class="console-meta">Per-project provider for refinement and runtime</span>
               </div>
 
@@ -162,7 +195,7 @@
                 <div class="guidance-title">{{ currentProvider.name }}</div>
                 <p class="guidance-copy">{{ currentProvider.description }}</p>
                 <div class="guidance-list">
-                  <span>{{ currentProvider.supportsPipeline ? 'Supports full pipeline' : 'Refinement only' }}</span>
+                  <span>{{ providerSupportsPipeline ? 'Supports full pipeline' : 'Refinement only for this graph backend' }}</span>
                   <span>{{ currentProvider.supportsRefinement ? 'Supports brief refinement' : 'No brief refinement' }}</span>
                 </div>
               </div>
@@ -217,7 +250,7 @@
 
             <div class="onboarding-step">
               <div class="console-header">
-                <span class="console-label">03 / Upload source documents</span>
+                <span class="console-label">04 / Upload source documents</span>
                 <span class="console-meta">PDF, Markdown, TXT</span>
               </div>
 
@@ -270,7 +303,7 @@
 
             <div class="onboarding-step">
               <div class="console-header">
-                <span class="console-label">04 / Build the brief</span>
+                <span class="console-label">05 / Build the brief</span>
                 <span class="console-meta">Use the structure below</span>
               </div>
 
@@ -449,31 +482,49 @@ const providerOptions = [
   {
     id: 'codex_cli',
     name: 'Codex CLI',
-    short: 'Use your local Codex installation for integrated brief refinement.',
-    description: 'Best when you already use Codex locally and want ModusOctopus to call it directly to improve the brief.',
+    short: 'Use your local Codex installation for the local graph pipeline.',
+    description: 'Best when you want a local-first run: Codex handles refinement and local graph generation without a separate LLM API key.',
     requiresApiKey: false,
     requiresBaseUrl: false,
     requiresModel: false,
     usesExecutable: true,
-    supportsPipeline: false,
+    supportsPipeline: true,
     supportsRefinement: true
   },
   {
     id: 'claude_code_cli',
     name: 'Claude Code CLI',
-    short: 'Use your local Claude Code installation for integrated brief refinement.',
-    description: 'Best when you already use Claude Code locally and want native refinement without copy-paste.',
+    short: 'Use your local Claude Code installation for the local graph pipeline.',
+    description: 'Best when you want Claude Code to drive refinement and the local graph pipeline without another model API.',
     requiresApiKey: false,
     requiresBaseUrl: false,
     requiresModel: false,
     usesExecutable: true,
-    supportsPipeline: false,
+    supportsPipeline: true,
     supportsRefinement: true
+  }
+]
+
+const graphBackendOptions = [
+  {
+    id: 'local',
+    name: 'Local snapshot graph',
+    short: 'Default. Offline snapshots stored inside the project.',
+    description: 'Builds and keeps a project-local graph snapshot on disk. Works with API providers or CLI providers.',
+    capability: 'Supports API providers and Codex/Claude CLI pipeline mode.'
+  },
+  {
+    id: 'zep',
+    name: 'Zep Cloud',
+    short: 'Advanced. Use the existing hosted graph backend.',
+    description: 'Uses the original Zep-backed graph workflow. Best when you explicitly want the hosted graph features.',
+    capability: 'Requires Zep API key. CLI providers are not recommended here.'
   }
 ]
 
 const selectedScenario = ref('pricing')
 const selectedProvider = ref('openai')
+const selectedGraphBackend = ref('local')
 const files = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -500,6 +551,10 @@ const currentScenario = computed(() => {
 
 const currentProvider = computed(() => {
   return providerOptions.find((provider) => provider.id === selectedProvider.value) || providerOptions[1]
+})
+
+const currentGraphBackend = computed(() => {
+  return graphBackendOptions.find((backend) => backend.id === selectedGraphBackend.value) || graphBackendOptions[0]
 })
 
 const simulationRequirement = computed(() => {
@@ -539,10 +594,20 @@ const providerConfig = computed(() => {
   return config
 })
 
+const providerSupportsPipeline = computed(() => {
+  if (!currentProvider.value.supportsPipeline) {
+    return false
+  }
+  if (selectedGraphBackend.value === 'zep' && ['codex_cli', 'claude_code_cli'].includes(selectedProvider.value)) {
+    return false
+  }
+  return true
+})
+
 const canSubmit = computed(() => {
   return finalSimulationRequirement.value.trim() !== ''
     && files.value.length > 0
-    && currentProvider.value.supportsPipeline
+    && providerSupportsPipeline.value
     && providerIsReadyForPipeline.value
 })
 
@@ -568,7 +633,7 @@ const providerCanRefine = computed(() => {
 })
 
 const providerIsReadyForPipeline = computed(() => {
-  if (!currentProvider.value.supportsPipeline) {
+  if (!providerSupportsPipeline.value) {
     return false
   }
   if (currentProvider.value.requiresApiKey && !providerForm.value.api_key.trim()) {
@@ -639,6 +704,17 @@ function selectProvider(id) {
   } else if (id === 'anthropic') {
     providerForm.value.executable = 'codex'
     providerForm.value.base_url = ''
+  }
+}
+
+function selectGraphBackend(id) {
+  selectedGraphBackend.value = id
+  helperMessage.value = ''
+  providerError.value = ''
+  providerStatus.value = null
+
+  if (id === 'zep' && ['codex_cli', 'claude_code_cli'].includes(selectedProvider.value)) {
+    helperMessage.value = 'Codex CLI and Claude Code CLI are supported in local graph mode. Switch back to the local backend or choose an API provider for Zep.'
   }
 }
 
@@ -735,6 +811,7 @@ function startSimulation() {
     setPendingUpload(
       files.value,
       finalSimulationRequirement.value,
+      selectedGraphBackend.value,
       providerConfig.value,
       providerForm.value.api_key.trim()
     )

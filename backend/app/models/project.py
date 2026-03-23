@@ -43,6 +43,7 @@ class Project:
     # 图谱信息（接口2完成后填充）
     graph_id: Optional[str] = None
     graph_build_task_id: Optional[str] = None
+    graph_backend: str = "local"
     
     # 配置
     simulation_requirement: Optional[str] = None
@@ -67,6 +68,7 @@ class Project:
             "analysis_summary": self.analysis_summary,
             "graph_id": self.graph_id,
             "graph_build_task_id": self.graph_build_task_id,
+            "graph_backend": self.graph_backend,
             "simulation_requirement": self.simulation_requirement,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
@@ -80,6 +82,10 @@ class Project:
         status = data.get('status', 'created')
         if isinstance(status, str):
             status = ProjectStatus(status)
+
+        graph_backend = data.get("graph_backend")
+        if not graph_backend:
+            graph_backend = "zep" if data.get("graph_id") else "local"
         
         return cls(
             project_id=data['project_id'],
@@ -93,6 +99,7 @@ class Project:
             analysis_summary=data.get('analysis_summary'),
             graph_id=data.get('graph_id'),
             graph_build_task_id=data.get('graph_build_task_id'),
+            graph_backend=graph_backend,
             simulation_requirement=data.get('simulation_requirement'),
             chunk_size=data.get('chunk_size', 500),
             chunk_overlap=data.get('chunk_overlap', 50),
@@ -116,6 +123,11 @@ class ProjectManager:
     def _get_project_dir(cls, project_id: str) -> str:
         """获取项目目录路径"""
         return os.path.join(cls.PROJECTS_DIR, project_id)
+
+    @classmethod
+    def get_project_dir(cls, project_id: str) -> str:
+        """Public accessor for a project's storage directory."""
+        return cls._get_project_dir(project_id)
     
     @classmethod
     def _get_project_meta_path(cls, project_id: str) -> str:
@@ -133,7 +145,7 @@ class ProjectManager:
         return os.path.join(cls._get_project_dir(project_id), 'extracted_text.txt')
     
     @classmethod
-    def create_project(cls, name: str = "Unnamed Project") -> Project:
+    def create_project(cls, name: str = "Unnamed Project", graph_backend: str = "local") -> Project:
         """
         创建新项目
         
@@ -153,7 +165,8 @@ class ProjectManager:
             name=name,
             status=ProjectStatus.CREATED,
             created_at=now,
-            updated_at=now
+            updated_at=now,
+            graph_backend=graph_backend,
         )
         
         # 创建项目目录结构
@@ -194,8 +207,18 @@ class ProjectManager:
         
         with open(meta_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        
+
         return Project.from_dict(data)
+
+    @classmethod
+    def find_project_by_graph_id(cls, graph_id: str) -> Optional[Project]:
+        """Find a project that owns the given graph id."""
+        cls._ensure_projects_dir()
+        for project_id in os.listdir(cls.PROJECTS_DIR):
+            project = cls.get_project(project_id)
+            if project and project.graph_id == graph_id:
+                return project
+        return None
     
     @classmethod
     def list_projects(cls, limit: int = 50) -> List[Project]:

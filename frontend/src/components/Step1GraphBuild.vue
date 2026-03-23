@@ -122,7 +122,7 @@
         <div class="card-content">
           <p class="api-note">POST /api/graph/build</p>
           <p class="description">
-            Using the generated ontology, the documents are chunked automatically and sent to Zep to build the knowledge graph, extract entities and relations, and derive temporal memory plus community summaries.
+            Using the generated ontology, ModusOctopus builds the project graph from your documents, extracts entities and relations, and prepares the context used by simulation and reporting.
           </p>
           
           <!-- Stats Cards -->
