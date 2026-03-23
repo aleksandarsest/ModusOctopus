@@ -65,11 +65,10 @@ class Config:
     
     @classmethod
     def validate(cls):
-        """验证必要配置"""
+        """Validate required configuration."""
         errors = []
         if not cls.LLM_API_KEY:
-            errors.append("LLM_API_KEY 未配置")
+            errors.append("LLM_API_KEY is not configured")
         if not cls.ZEP_API_KEY:
-            errors.append("ZEP_API_KEY 未配置")
+            errors.append("ZEP_API_KEY is not configured")
         return errors
-
