@@ -1,9 +1,9 @@
 # Codex Prompt
 
-Use this prompt when you want Codex to improve your simulation brief before you run MiroFish.
+Use this prompt when you want Codex to improve your simulation brief before you run ModusOctopus.
 
 ```text
-I am preparing a MiroFish simulation brief.
+I am preparing a ModusOctopus simulation brief.
 
 Scenario type:
 [pricing change / product launch / policy or org change / reputation or crisis / custom]
@@ -39,4 +39,4 @@ Tips:
 
 - Be specific about what decision, launch, or policy is changing.
 - Name the stakeholder groups you care about.
-- Ask for a brief you can paste directly into MiroFish.
+- Ask for a brief you can paste directly into ModusOctopus.

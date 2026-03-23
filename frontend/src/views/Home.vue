@@ -1,9 +1,9 @@
 <template>
   <div class="home-container">
     <nav class="navbar">
-      <div class="nav-brand">MIROFISH</div>
+      <div class="nav-brand">MODUSOCTOPUS</div>
       <div class="nav-links">
-        <a href="https://github.com/666ghj/MiroFish" target="_blank" class="github-link">
+        <a href="https://github.com/666ghj/ModusOctopus" target="_blank" class="github-link">
           View on GitHub <span class="arrow">↗</span>
         </a>
       </div>
@@ -23,7 +23,7 @@
           </h1>
 
           <p class="hero-desc">
-            Upload source documents, define the scenario, and let MiroFish build a graph,
+            Upload source documents, define the scenario, and let ModusOctopus build a graph,
             prepare agents, run the simulation, and generate a report you can inspect.
           </p>
 
@@ -35,7 +35,7 @@
         </div>
 
         <div class="hero-logo-wrap">
-          <img src="../assets/logo/MiroFish_logo_left.jpeg" alt="MiroFish Logo" class="hero-logo" />
+          <img src="../assets/logo/ModusOctopus_logo_left.jpeg" alt="ModusOctopus Logo" class="hero-logo" />
         </div>
       </section>
 
@@ -48,7 +48,7 @@
           <h2 class="section-title">Idiot-proof onboarding</h2>
           <p class="section-desc">
             Pick a scenario, upload the evidence, structure the brief, and run the
-            current MiroFish pipeline without guessing what the system expects.
+            current ModusOctopus pipeline without guessing what the system expects.
           </p>
 
           <div class="metrics-row">
@@ -313,7 +313,7 @@
 
             <div class="console-section btn-section">
               <button class="start-engine-btn" :disabled="!canSubmit || loading" @click="startSimulation">
-                <span>{{ loading ? 'Preparing...' : 'Run MiroFish' }}</span>
+                <span>{{ loading ? 'Preparing...' : 'Run ModusOctopus' }}</span>
                 <span class="btn-arrow">→</span>
               </button>
               <p v-if="error" class="error-text">{{ error }}</p>
@@ -425,7 +425,7 @@ const providerOptions = [
   {
     id: 'openai',
     name: 'OpenAI API',
-    short: 'Use OpenAI directly for refinement and the full MiroFish pipeline.',
+    short: 'Use OpenAI directly for refinement and the full ModusOctopus pipeline.',
     description: 'Best when you want one provider for ontology generation, simulation prep, reports, and brief refinement.',
     requiresApiKey: true,
     requiresBaseUrl: false,
@@ -450,7 +450,7 @@ const providerOptions = [
     id: 'codex_cli',
     name: 'Codex CLI',
     short: 'Use your local Codex installation for integrated brief refinement.',
-    description: 'Best when you already use Codex locally and want MiroFish to call it directly to improve the brief.',
+    description: 'Best when you already use Codex locally and want ModusOctopus to call it directly to improve the brief.',
     requiresApiKey: false,
     requiresBaseUrl: false,
     requiresModel: false,

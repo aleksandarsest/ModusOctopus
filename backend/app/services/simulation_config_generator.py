@@ -21,7 +21,7 @@ from ..utils.logger import get_logger
 from ..utils.llm_client import LLMClient
 from .zep_entity_reader import EntityNode, ZepEntityReader
 
-logger = get_logger('mirofish.simulation_config')
+logger = get_logger('modusoctopus.simulation_config')
 
 # 中国作息时间配置（北京时间）
 CHINA_TIMEZONE_CONFIG = {
