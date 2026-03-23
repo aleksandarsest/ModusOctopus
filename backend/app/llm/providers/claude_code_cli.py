@@ -51,7 +51,7 @@ class ClaudeCodeCLIProvider(BaseLLMProvider):
 
     def refine_brief(self, brief_input: Any) -> Dict[str, Any]:
         prompt = (
-            "Rewrite the following MiroFish simulation brief into a clearer, more concrete "
+            "Rewrite the following ModusOctopus simulation brief into a clearer, more concrete "
             "business scenario brief. Do not use tools. Reply with plain text only.\n\n"
             f"{self._brief_input_to_text(brief_input)}"
         )

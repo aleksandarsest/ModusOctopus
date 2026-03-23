@@ -1,26 +1,28 @@
 <div align="center">
 
-<img src="./static/image/MiroFish_logo_compressed.jpeg" alt="MiroFish Logo" width="75%"/>
+<img src="./static/image/ModusOctopus_logo_compressed.jpeg" alt="ModusOctopus Logo" width="75%"/>
 
-[![GitHub Stars](https://img.shields.io/github/stars/666ghj/MiroFish?style=flat-square&color=DAA520)](https://github.com/666ghj/MiroFish/stargazers)
-[![GitHub Watchers](https://img.shields.io/github/watchers/666ghj/MiroFish?style=flat-square)](https://github.com/666ghj/MiroFish/watchers)
-[![GitHub Forks](https://img.shields.io/github/forks/666ghj/MiroFish?style=flat-square)](https://github.com/666ghj/MiroFish/network)
+[![GitHub Stars](https://img.shields.io/github/stars/666ghj/ModusOctopus?style=flat-square&color=DAA520)](https://github.com/666ghj/ModusOctopus/stargazers)
+[![GitHub Watchers](https://img.shields.io/github/watchers/666ghj/ModusOctopus?style=flat-square)](https://github.com/666ghj/ModusOctopus/watchers)
+[![GitHub Forks](https://img.shields.io/github/forks/666ghj/ModusOctopus?style=flat-square)](https://github.com/666ghj/ModusOctopus/network)
 [![Docker](https://img.shields.io/badge/Docker-Build-2496ED?style=flat-square&logo=docker&logoColor=white)](https://hub.docker.com/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/666ghj/MiroFish)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/666ghj/ModusOctopus)
 
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](http://discord.gg/ePf5aPaHnA)
-[![X](https://img.shields.io/badge/X-Follow-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/mirofish_ai)
-[![Instagram](https://img.shields.io/badge/Instagram-Follow-E4405F?style=flat-square&logo=instagram&logoColor=white)](https://www.instagram.com/mirofish_ai/)
+[![X](https://img.shields.io/badge/X-Follow-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/modusoctopus_ai)
+[![Instagram](https://img.shields.io/badge/Instagram-Follow-E4405F?style=flat-square&logo=instagram&logoColor=white)](https://www.instagram.com/modusoctopus_ai/)
 
 [English](./README.md) | [Legacy English README](./README-EN.md)
 
 </div>
 
-# MiroFish
+# ModusOctopus
 
 Open-source multi-agent simulation for testing business decisions before you make them.
 
-MiroFish turns source material such as internal memos, policy drafts, customer research, press statements, meeting notes, and market context into:
+> Fork/rebrand note: ModusOctopus is a rebranded fork of the original MiroFish codebase and remains distributed under `AGPL-3.0`. Keep the original license and attribution notices intact when redistributing modified versions.
+
+ModusOctopus turns source material such as internal memos, policy drafts, customer research, press statements, meeting notes, and market context into:
 
 - a scenario graph built from your documents
 - a simulated multi-agent environment running on social platforms
@@ -35,9 +37,9 @@ The current product is best understood as a decision-simulation workflow:
 5. Run the simulation
 6. Generate a report and inspect the result
 
-## What MiroFish Is Good For
+## What ModusOctopus Is Good For
 
-MiroFish is a good fit when you want to pressure-test a scenario before it goes live.
+ModusOctopus is a good fit when you want to pressure-test a scenario before it goes live.
 
 Examples:
 
@@ -66,7 +68,7 @@ Typical outputs:
 
 ## How It Works
 
-MiroFish combines several layers:
+ModusOctopus combines several layers:
 
 - `LLM layer`: generates the ontology, agent profiles, simulation config, and report text
 - `Zep layer`: stores graph memory, entities, edges, and retrieval context
@@ -148,7 +150,7 @@ npm run frontend
 
 ## Optional: Use With Codex Or Claude Code
 
-MiroFish does not require Codex or Claude Code.
+ModusOctopus does not require Codex or Claude Code.
 
 They are useful as optional helpers for:
 
@@ -161,7 +163,7 @@ Suggested workflow:
 1. Collect your source documents
 2. Draft a rough scenario question
 3. Use Codex or Claude Code to refine the brief
-4. Paste the final brief into MiroFish
+4. Paste the final brief into ModusOctopus
 5. Run the simulation
 6. Use the resulting report for follow-up analysis
 
@@ -195,6 +197,6 @@ It does not yet fully translate every backend response, edge-case message, or in
 
 ## Acknowledgements
 
-MiroFish is strategically supported by Shanda Group.
+ModusOctopus is strategically supported by Shanda Group.
 
 The simulation engine is powered by [OASIS](https://github.com/camel-ai/oasis). We appreciate the CAMEL-AI team's open-source work.

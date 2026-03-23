@@ -98,7 +98,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         messages = [
             {
                 "role": "system",
-                "content": "You refine MiroFish simulation briefs into concrete, stakeholder-aware business scenarios.",
+                "content": "You refine ModusOctopus simulation briefs into concrete, stakeholder-aware business scenarios.",
             },
             {"role": "user", "content": prompt},
         ]

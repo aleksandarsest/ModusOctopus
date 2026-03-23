@@ -1,9 +1,9 @@
 services:
-  mirofish:
-    image: ghcr.io/666ghj/mirofish:latest
+  modusoctopus:
+    image: ghcr.io/666ghj/modusoctopus:latest
     # 加速镜像（如拉取缓慢可替换上方地址）
-    # image: ghcr.nju.edu.cn/666ghj/mirofish:latest
-    container_name: mirofish
+    # image: ghcr.nju.edu.cn/666ghj/modusoctopus:latest
+    container_name: modusoctopus
     env_file:
       - .env
     ports:

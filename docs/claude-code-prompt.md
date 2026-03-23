@@ -1,9 +1,9 @@
 # Claude Code Prompt
 
-Use this prompt when you want Claude Code to tighten your scenario framing before you run MiroFish.
+Use this prompt when you want Claude Code to tighten your scenario framing before you run ModusOctopus.
 
 ```text
-I am preparing a simulation brief for MiroFish.
+I am preparing a simulation brief for ModusOctopus.
 
 Scenario type:
 [pricing change / product launch / policy or org change / reputation or crisis / custom]
@@ -17,7 +17,7 @@ Source material available:
 I want you to:
 1. Identify gaps, ambiguity, or weak assumptions in this brief.
 2. Suggest the most important missing inputs that would improve the simulation.
-3. Rewrite the brief so it is explicit, business-focused, and ready to paste into MiroFish.
+3. Rewrite the brief so it is explicit, business-focused, and ready to paste into ModusOctopus.
 
 Return the final version in this format:
 
