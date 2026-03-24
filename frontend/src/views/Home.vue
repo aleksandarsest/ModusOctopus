@@ -58,7 +58,7 @@
         </div>
 
         <div class="hero-logo-wrap">
-          <div class="hero-visual-card">
+<div class="hero-visual-card">
             <img :src="heroLogo" alt="ModusOctopus Logo" class="hero-logo" />
             <div class="visual-caption">
               <div class="visual-title">Built for serious what-if work</div>
@@ -77,10 +77,17 @@
               AI safety and regulation backlash.
             </div>
           </div>
-          <button class="instant-demo-btn" :disabled="loading" @click="runInstantDemo">
-            <span>Run instant demo</span>
-            <span class="btn-arrow">→</span>
-          </button>
+          <div class="demo-callout-actions">
+            <button class="instant-demo-btn" :disabled="loading" @click="runInstantDemo">
+              <span>Run instant demo</span>
+              <span class="btn-arrow">→</span>
+            </button>
+            <button class="instant-demo-btn secondary" :disabled="loading" @click="runQuickProductLaunchDemo">
+              <span>Quick product launch demo</span>
+              <span class="btn-arrow">→</span>
+            </button>
+          </div>
+          <p class="demo-callout-note">Quick demo delivers the first few simulation turns in under two minutes.</p>
         </div>
       </section>
 
@@ -427,7 +434,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
 import { refineBrief, validateProvider } from '../api/providers'
-import { getInstantDemoConfig } from '../demo/instantDemo'
+import { getInstantDemoConfig, getQuickProductLaunchDemoConfig } from '../demo/instantDemo'
 import { getOnboardingWizardSteps, getWizardNavigation } from '../onboarding/wizard'
 import heroLogo from '../assets/logo/modusoctopus-hero.svg'
 
@@ -998,6 +1005,40 @@ function runInstantDemo() {
     })
   })
 }
+
+function runQuickProductLaunchDemo() {
+  if (loading.value) return
+
+  const demo = getQuickProductLaunchDemoConfig()
+  const demoFiles = demo.documents.map((doc) => new File([doc.content], doc.name, { type: doc.type }))
+
+  selectedScenario.value = 'launch'
+  selectedGraphBackend.value = demo.graphBackend
+  selectedProvider.value = demo.llmConfig.provider_type
+  providerForm.value.executable = demo.llmConfig.executable
+  providerForm.value.model_name = demo.llmConfig.model_name || ''
+  providerForm.value.base_url = ''
+  providerForm.value.api_key = ''
+  providerError.value = ''
+  providerStatus.value = null
+  refinedBrief.value = ''
+  helperMessage.value = `Loaded quick product launch demo: ${demo.title}`
+  files.value = demoFiles
+
+  import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
+    setPendingUpload(
+      demoFiles,
+      demo.simulationRequirement,
+      demo.graphBackend,
+      demo.llmConfig,
+      ''
+    )
+    router.push({
+      name: 'Process',
+      params: { projectId: 'new' }
+    })
+  })
+}
 </script>
 
 <style scoped>
@@ -1247,6 +1288,22 @@ function runInstantDemo() {
 .instant-demo-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.instant-demo-btn.secondary {
+  background: linear-gradient(135deg, #d95f33 0%, #f3b06b 60%);
+}
+
+.demo-callout-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.demo-callout-note {
+  font-size: 0.85rem;
+  color: var(--gray-text);
+  margin-top: 10px;
 }
 
 .hero-logo-wrap {
