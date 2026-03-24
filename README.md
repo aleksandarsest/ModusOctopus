@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./static/image/modusoctopus-banner.svg" alt="ModusOctopus Logo" width="75%"/>
+<img src="./static/image/modusoctopuslogo.png" alt="ModusOctopus Logo" width="75%"/>
 
 [![GitHub Stars](https://img.shields.io/github/stars/666ghj/ModusOctopus?style=flat-square&color=DAA520)](https://github.com/666ghj/ModusOctopus/stargazers)
 [![GitHub Watchers](https://img.shields.io/github/watchers/666ghj/ModusOctopus?style=flat-square)](https://github.com/666ghj/ModusOctopus/watchers)
