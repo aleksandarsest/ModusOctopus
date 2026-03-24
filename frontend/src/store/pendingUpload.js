@@ -10,15 +10,24 @@ const state = reactive({
   graphBackend: 'local',
   llmConfig: null,
   llmApiKey: '',
+  meta: null,
   isPending: false
 })
 
-export function setPendingUpload(files, requirement, graphBackend = 'local', llmConfig = null, llmApiKey = '') {
+export function setPendingUpload(
+  files,
+  requirement,
+  graphBackend = 'local',
+  llmConfig = null,
+  llmApiKey = '',
+  meta = null
+) {
   state.files = files
   state.simulationRequirement = requirement
   state.graphBackend = graphBackend
   state.llmConfig = llmConfig
   state.llmApiKey = llmApiKey
+  state.meta = meta
   state.isPending = true
 }
 
@@ -29,6 +38,7 @@ export function getPendingUpload() {
     graphBackend: state.graphBackend,
     llmConfig: state.llmConfig,
     llmApiKey: state.llmApiKey,
+    meta: state.meta,
     isPending: state.isPending
   }
 }
@@ -39,6 +49,7 @@ export function clearPendingUpload() {
   state.graphBackend = 'local'
   state.llmConfig = null
   state.llmApiKey = ''
+  state.meta = null
   state.isPending = false
 }
 

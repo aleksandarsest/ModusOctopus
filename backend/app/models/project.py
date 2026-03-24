@@ -39,17 +39,21 @@ class Project:
     # 本体信息（接口1生成后填充）
     ontology: Optional[Dict[str, Any]] = None
     analysis_summary: Optional[str] = None
-    
+    ontology_usage_summary: Optional[Dict[str, Any]] = None
+
     # 图谱信息（接口2完成后填充）
     graph_id: Optional[str] = None
     graph_build_task_id: Optional[str] = None
     graph_backend: str = "local"
+    graph_build_usage_summary: Optional[Dict[str, Any]] = None
     
     # 配置
     simulation_requirement: Optional[str] = None
     chunk_size: int = 500
     chunk_overlap: int = 50
     llm_config: Optional[Dict[str, Any]] = None
+    time_config_override: Optional[Dict[str, Any]] = None
+    max_rounds_override: Optional[int] = None
     
     # 错误信息
     error: Optional[str] = None
@@ -66,13 +70,17 @@ class Project:
             "total_text_length": self.total_text_length,
             "ontology": self.ontology,
             "analysis_summary": self.analysis_summary,
+            "ontology_usage_summary": self.ontology_usage_summary,
             "graph_id": self.graph_id,
             "graph_build_task_id": self.graph_build_task_id,
             "graph_backend": self.graph_backend,
+            "graph_build_usage_summary": self.graph_build_usage_summary,
             "simulation_requirement": self.simulation_requirement,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
             "llm_config": dict(self.llm_config) if isinstance(self.llm_config, dict) else self.llm_config,
+            "time_config_override": self.time_config_override,
+            "max_rounds_override": self.max_rounds_override,
             "error": self.error
         }
     
@@ -97,13 +105,17 @@ class Project:
             total_text_length=data.get('total_text_length', 0),
             ontology=data.get('ontology'),
             analysis_summary=data.get('analysis_summary'),
+            ontology_usage_summary=data.get('ontology_usage_summary'),
             graph_id=data.get('graph_id'),
             graph_build_task_id=data.get('graph_build_task_id'),
             graph_backend=graph_backend,
+            graph_build_usage_summary=data.get('graph_build_usage_summary'),
             simulation_requirement=data.get('simulation_requirement'),
             chunk_size=data.get('chunk_size', 500),
             chunk_overlap=data.get('chunk_overlap', 50),
             llm_config=dict(data['llm_config']) if isinstance(data.get('llm_config'), dict) else data.get('llm_config'),
+            time_config_override=data.get('time_config_override'),
+            max_rounds_override=data.get('max_rounds_override'),
             error=data.get('error')
         )
 

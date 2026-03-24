@@ -1031,7 +1031,18 @@ function runQuickProductLaunchDemo() {
       demo.simulationRequirement,
       demo.graphBackend,
       demo.llmConfig,
-      ''
+      '',
+      {
+        time_config_override: {
+          total_simulation_hours: 2,
+          minutes_per_round: 5,
+          agents_per_hour_min: 2,
+          agents_per_hour_max: 6,
+          peak_hours: [18, 19, 20],
+          off_peak_hours: [0, 1, 2, 3, 4, 5]
+        },
+        max_rounds_override: 8
+      }
     )
     router.push({
       name: 'Process',

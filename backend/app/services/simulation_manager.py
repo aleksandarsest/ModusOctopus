@@ -14,7 +14,9 @@ from enum import Enum
 
 from ..config import Config
 from ..graph_store.project_store import resolve_graph_store_for_project
+from ..llm.providers.base import BaseLLMProvider
 from ..llm.project_config import resolve_project_provider_config
+from ..llm.usage_pricing import enrich_usage_summary, provider_context_from_llm_client
 from ..models.project import ProjectManager
 from ..utils.logger import get_logger
 from .graph_entity_reader import GraphEntityReader, FilteredEntities
@@ -64,6 +66,8 @@ class SimulationState:
     # 配置生成信息
     config_generated: bool = False
     config_reasoning: str = ""
+    usage_summary: Optional[Dict[str, Any]] = None
+    max_rounds_override: Optional[int] = None
     
     # 运行时数据
     current_round: int = 0
@@ -91,6 +95,8 @@ class SimulationState:
             "entity_types": self.entity_types,
             "config_generated": self.config_generated,
             "config_reasoning": self.config_reasoning,
+            "usage_summary": self.usage_summary,
+            "max_rounds_override": self.max_rounds_override,
             "current_round": self.current_round,
             "twitter_status": self.twitter_status,
             "reddit_status": self.reddit_status,
@@ -110,6 +116,7 @@ class SimulationState:
             "profiles_count": self.profiles_count,
             "entity_types": self.entity_types,
             "config_generated": self.config_generated,
+            "usage_summary": self.usage_summary,
             "error": self.error,
         }
 
@@ -182,11 +189,13 @@ class SimulationManager:
             entity_types=data.get("entity_types", []),
             config_generated=data.get("config_generated", False),
             config_reasoning=data.get("config_reasoning", ""),
+            usage_summary=data.get("usage_summary"),
             current_round=data.get("current_round", 0),
             twitter_status=data.get("twitter_status", "not_started"),
             reddit_status=data.get("reddit_status", "not_started"),
             created_at=data.get("created_at", datetime.now().isoformat()),
             updated_at=data.get("updated_at", datetime.now().isoformat()),
+            max_rounds_override=data.get("max_rounds_override"),
             error=data.get("error"),
         )
         
@@ -272,6 +281,9 @@ class SimulationManager:
             project = ProjectManager.get_project(state.project_id)
             if not project:
                 raise ValueError(f"Project not found: {state.project_id}")
+            if project.max_rounds_override:
+                state.max_rounds_override = project.max_rounds_override
+                self._save_simulation_state(state)
             provider_config = resolve_project_provider_config(project)
             
             sim_dir = self._get_simulation_dir(simulation_id)
@@ -356,7 +368,7 @@ class SimulationManager:
                 realtime_output_path=realtime_output_path,  # 实时保存路径
                 output_platform=realtime_platform  # 输出格式
             )
-            
+
             state.profiles_count = len(profiles)
             
             # 保存Profile文件（注意：Twitter使用CSV格式，Reddit使用JSON格式）
@@ -419,8 +431,26 @@ class SimulationManager:
                 document_text=document_text,
                 entities=filtered.entities,
                 enable_twitter=state.enable_twitter,
-                enable_reddit=state.enable_reddit
+                enable_reddit=state.enable_reddit,
+                time_config_override=project.time_config_override
             )
+            state.usage_summary = {
+                "profiles": enrich_usage_summary(
+                    generator.usage_summary,
+                    provider_context_from_llm_client(generator.llm_client),
+                ),
+                "config": enrich_usage_summary(
+                    config_generator.usage_summary,
+                    provider_context_from_llm_client(config_generator.llm_client),
+                ),
+                "estimated_total": enrich_usage_summary(
+                    BaseLLMProvider.merge_usage_estimates(
+                        generator.usage_summary,
+                        config_generator.usage_summary,
+                    ),
+                    provider_context_from_llm_client(config_generator.llm_client),
+                ),
+            }
             
             if progress_callback:
                 progress_callback(

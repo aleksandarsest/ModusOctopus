@@ -205,8 +205,11 @@ const loadSimulationData = async () => {
     
     // 获取 simulation 信息
     const simRes = await getSimulation(currentSimulationId.value)
-    if (simRes.success && simRes.data) {
-      const simData = simRes.data
+      if (simRes.success && simRes.data) {
+        const simData = simRes.data
+        if (simData.max_rounds_override) {
+          maxRounds.value = simData.max_rounds_override
+        }
       
       // 获取 simulation config 以获取 minutes_per_round
       try {

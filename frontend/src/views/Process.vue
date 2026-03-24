@@ -586,6 +586,12 @@ const handleNewProject = async () => {
     })
     formDataObj.append('simulation_requirement', pending.simulationRequirement)
     formDataObj.append('graph_backend', pending.graphBackend || 'local')
+    if (pending.meta?.time_config_override) {
+      formDataObj.append('time_config_override', JSON.stringify(pending.meta.time_config_override))
+    }
+    if (pending.meta?.max_rounds_override) {
+      formDataObj.append('max_rounds_override', pending.meta.max_rounds_override.toString())
+    }
     
     // 调用本体生成 API
     const response = await generateOntology(formDataObj)

@@ -1512,6 +1512,10 @@ def start_simulation():
                 "error": f"Invalid platform: {platform}. Expected one of twitter/reddit/parallel."
             }), 400
 
+        # 如果 caller 没有指定 max_rounds，但项目提供了 override，则采用
+        if max_rounds is None and state.max_rounds_override:
+            max_rounds = state.max_rounds_override
+
         # 检查模拟是否已准备好
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)

@@ -14,6 +14,7 @@ from . import graph_bp
 from ..config import Config
 from ..llm.factory import LLMProviderFactory
 from ..llm.project_config import build_project_llm_metadata, resolve_project_provider_config
+from ..llm.usage_pricing import enrich_usage_summary, provider_context_from_llm_client
 from ..models.project_secrets import ProjectSecretsStore
 from ..utils.llm_client import LLMClient
 from ..graph_store.project_store import resolve_graph_store_for_project, resolve_graph_store_for_graph_id
@@ -224,6 +225,11 @@ def refine_brief():
 
         llm_client = LLMClient(provider_config=runtime_config)
         result = llm_client.refine_brief(brief_input)
+        if result.get("usage_estimate"):
+            result["usage_estimate"] = enrich_usage_summary(
+                result["usage_estimate"],
+                provider_context_from_llm_client(llm_client),
+            )
 
         return jsonify({
             "success": True,
@@ -339,6 +345,14 @@ def generate_ontology():
         project_name = request.form.get('project_name', 'Unnamed Project')
         additional_context = request.form.get('additional_context', '')
         graph_backend = _read_graph_backend(request.form.get('graph_backend'))
+        time_override_raw = request.form.get('time_config_override')
+        time_config_override = None
+        if time_override_raw:
+            try:
+                time_config_override = json.loads(time_override_raw)
+            except Exception:
+                logger.warning("Failed to parse time_config_override")
+        max_rounds_override = request.form.get('max_rounds_override')
         
         logger.debug(f"项目名称: {project_name}")
         logger.debug(f"模拟需求: {simulation_requirement[:100]}...")
@@ -362,6 +376,13 @@ def generate_ontology():
         # 创建项目
         project = ProjectManager.create_project(name=project_name, graph_backend=graph_backend)
         project.simulation_requirement = simulation_requirement
+        if time_config_override:
+            project.time_config_override = time_config_override
+        if max_rounds_override:
+            try:
+                project.max_rounds_override = int(max_rounds_override)
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid max_rounds_override: {max_rounds_override}")
         logger.info(f"创建项目: {project.project_id}")
 
         if raw_llm_config:
@@ -430,6 +451,10 @@ def generate_ontology():
             "edge_types": ontology.get("edge_types", [])
         }
         project.analysis_summary = ontology.get("analysis_summary", "")
+        project.ontology_usage_summary = enrich_usage_summary(
+            generator.last_usage_estimate,
+            provider_context_from_llm_client(generator.llm_client),
+        )
         project.status = ProjectStatus.ONTOLOGY_GENERATED
         ProjectManager.save_project(project)
         logger.info(f"=== 本体生成完成 === 项目ID: {project.project_id}")
@@ -441,6 +466,7 @@ def generate_ontology():
                 "project_name": project.name,
                 "ontology": project.ontology,
                 "analysis_summary": project.analysis_summary,
+                "ontology_usage_summary": project.ontology_usage_summary,
                 "files": project.files,
                 "total_text_length": project.total_text_length
             }
@@ -528,6 +554,7 @@ def build_graph():
             project.status = ProjectStatus.ONTOLOGY_GENERATED
             project.graph_id = None
             project.graph_build_task_id = None
+            project.graph_build_usage_summary = None
             project.error = None
         
         # 获取配置
@@ -665,6 +692,10 @@ def build_graph():
                         progress=95
                     )
                     graph_data = graph_store.get_graph_data(graph_id)
+                    project.graph_build_usage_summary = enrich_usage_summary(
+                        local_builder.usage_summary,
+                        provider_context_from_llm_client(local_builder.llm_client),
+                    )
                 else:
                     builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
 
@@ -723,6 +754,7 @@ def build_graph():
                         progress=95
                     )
                     graph_data = graph_store.get_graph_data(graph_id)
+                    project.graph_build_usage_summary = None
                 
                 # 更新项目状态
                 project.status = ProjectStatus.GRAPH_COMPLETED
@@ -742,7 +774,8 @@ def build_graph():
                         "graph_id": graph_id,
                         "node_count": node_count,
                         "edge_count": edge_count,
-                        "chunk_count": total_chunks
+                        "chunk_count": total_chunks,
+                        "usage_summary": project.graph_build_usage_summary,
                     }
                 )
                 
