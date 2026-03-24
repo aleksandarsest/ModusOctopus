@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./static/image/ModusOctopus_logo_compressed.jpeg" alt="ModusOctopus Logo" width="75%"/>
+<img src="./static/image/modusoctopus-banner.svg" alt="ModusOctopus Logo" width="75%"/>
 
 [![GitHub Stars](https://img.shields.io/github/stars/666ghj/ModusOctopus?style=flat-square&color=DAA520)](https://github.com/666ghj/ModusOctopus/stargazers)
 [![GitHub Watchers](https://img.shields.io/github/watchers/666ghj/ModusOctopus?style=flat-square)](https://github.com/666ghj/ModusOctopus/watchers)
@@ -20,7 +20,7 @@
 
 Open-source multi-agent simulation for testing business decisions before you make them.
 
-> Fork/rebrand note: ModusOctopus is a rebranded fork of the original MiroFish codebase and remains distributed under `AGPL-3.0`. Keep the original license and attribution notices intact when redistributing modified versions.
+> Fork/rebrand note: ModusOctopus is a rebranded fork of the original upstream codebase and remains distributed under `AGPL-3.0`. Keep the original license and attribution notices intact when redistributing modified versions.
 
 ModusOctopus turns source material such as internal memos, policy drafts, customer research, press statements, meeting notes, and market context into:
 

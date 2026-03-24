@@ -1,7 +1,13 @@
 <template>
   <div class="home-container">
     <nav class="navbar">
-      <div class="nav-brand">MODUSOCTOPUS</div>
+      <div class="nav-brand-block">
+        <img src="/icon.svg" alt="ModusOctopus mark" class="nav-mark" />
+        <div class="nav-brand-copy">
+          <div class="nav-brand">MODUSOCTOPUS</div>
+          <div class="nav-subbrand">Real World Simulations</div>
+        </div>
+      </div>
       <div class="nav-links">
         <a href="https://github.com/666ghj/ModusOctopus" target="_blank" class="github-link">
           View on GitHub <span class="arrow">↗</span>
@@ -13,102 +19,128 @@
       <section class="hero-section">
         <div class="hero-copy">
           <div class="tag-row">
-            <span class="orange-tag">English OSS v1</span>
-            <span class="version-text">Business scenario simulation</span>
+            <span class="orange-tag">Open source</span>
+            <span class="version-text">Local graph by default</span>
+            <span class="version-text">Codex and Claude compatible</span>
           </div>
 
           <h1 class="main-title">
-            Test a business decision
-            <span class="gradient-text">before you make it</span>
+            Run real-world scenarios
+            <span class="gradient-text">before the world does</span>
           </h1>
 
           <p class="hero-desc">
-            Upload source documents, define the scenario, and let ModusOctopus build a graph,
-            prepare agents, run the simulation, and generate a report you can inspect.
+            Upload your documents, run the simulation, and see how the story could spread
+            before customers, media, or stakeholders react for real.
           </p>
 
           <div class="hero-points">
+            <span>Open-source and local-first</span>
             <span>Graph from source material</span>
-            <span>Multi-agent simulation</span>
-            <span>Decision report at the end</span>
+            <span>Agent simulation with report output</span>
           </div>
+
+          <div class="trust-row">
+            <div class="trust-card">
+              <div class="trust-value">Local by default</div>
+              <div class="trust-label">No hosted graph required for a first run</div>
+            </div>
+            <div class="trust-card">
+              <div class="trust-value">CLI-native</div>
+              <div class="trust-label">Run with Codex or Claude Code in local mode</div>
+            </div>
+            <div class="trust-card">
+              <div class="trust-value">Inspect everything</div>
+              <div class="trust-label">Snapshots, profiles, config, and simulation artifacts stay visible</div>
+            </div>
+          </div>
+
         </div>
 
         <div class="hero-logo-wrap">
-          <img src="../assets/logo/ModusOctopus_logo_left.jpeg" alt="ModusOctopus Logo" class="hero-logo" />
+          <div class="hero-visual-card">
+            <img :src="heroLogo" alt="ModusOctopus Logo" class="hero-logo" />
+            <div class="visual-caption">
+              <div class="visual-title">Built for serious what-if work</div>
+              <div class="visual-copy">Structured inputs, graph snapshots, agent prep, simulation runtime, and decision reports in one workflow.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="demo-callout full-width-demo">
+          <div class="demo-callout-copy">
+            <div class="demo-eyebrow">Instant demo</div>
+            <div class="demo-title">Watch an AI launch turn into a safety panic</div>
+            <div class="demo-text">
+              Start with a fictional consumer AI companion launch where viral screenshots show confident personal,
+              medical, and legal fabrications on day one. The default run is designed to escalate into a wider
+              AI safety and regulation backlash.
+            </div>
+          </div>
+          <button class="instant-demo-btn" :disabled="loading" @click="runInstantDemo">
+            <span>Run instant demo</span>
+            <span class="btn-arrow">→</span>
+          </button>
         </div>
       </section>
 
       <section class="dashboard-section">
-        <aside class="left-panel">
-          <div class="panel-header">
-            <span class="status-dot">■</span> Recommended workflow
-          </div>
-
-          <h2 class="section-title">Idiot-proof onboarding</h2>
-          <p class="section-desc">
-            Pick a scenario, upload the evidence, structure the brief, and run the
-            current ModusOctopus pipeline without guessing what the system expects.
-          </p>
-
-          <div class="metrics-row">
-            <div class="metric-card">
-              <div class="metric-value">2-10 docs</div>
-              <div class="metric-label">Best input range for a first run</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-value">Optional agents</div>
-              <div class="metric-label">Use Codex or Claude Code to refine the brief</div>
-            </div>
-          </div>
-
-          <div class="steps-container">
-            <div class="steps-header">
-              <span class="diamond-icon">◇</span> What happens next
-            </div>
-
-            <div class="workflow-list">
-              <div class="workflow-item">
-                <span class="step-num">01</span>
-                <div class="step-info">
-                  <div class="step-title">Build scenario graph</div>
-                  <div class="step-desc">Extract entities, relationships, and context from your source material.</div>
-                </div>
-              </div>
-
-              <div class="workflow-item">
-                <span class="step-num">02</span>
-                <div class="step-info">
-                  <div class="step-title">Prepare simulation agents</div>
-                  <div class="step-desc">Create agent profiles and simulation settings from the graph.</div>
-                </div>
-              </div>
-
-              <div class="workflow-item">
-                <span class="step-num">03</span>
-                <div class="step-info">
-                  <div class="step-title">Run the simulation</div>
-                  <div class="step-desc">Simulate how stakeholders may react across social-platform environments.</div>
-                </div>
-              </div>
-
-              <div class="workflow-item">
-                <span class="step-num">04</span>
-                <div class="step-info">
-                  <div class="step-title">Generate a decision report</div>
-                  <div class="step-desc">Review likely narratives, risks, and next moves in one place.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <section class="right-panel">
+        <section class="right-panel wizard-full-width">
           <div class="console-box">
-            <div class="onboarding-step">
+            <div class="wizard-header">
+              <div>
+                <div v-if="currentWizardStep.id !== 'intro'" class="console-label">{{ currentWizardStep.eyebrow }}</div>
+                <div class="wizard-title">{{ currentWizardStep.id === 'intro' ? 'Start here' : currentWizardStep.title }}</div>
+              </div>
+              <div class="wizard-progress">{{ wizardStepIndex + 1 }} / {{ wizardSteps.length }}</div>
+            </div>
+
+            <div v-if="currentWizardStep.id === 'intro'" class="onboarding-step">
               <div class="console-header">
-                <span class="console-label">01 / Pick a scenario</span>
-                <span class="console-meta">Choose the closest template</span>
+                <span class="console-meta">{{ currentWizardStep.meta }}</span>
+              </div>
+
+              <div class="wizard-overview-card intro-guidance">
+                <div class="metrics-row">
+                  <div class="metric-card">
+                    <div class="metric-value">6 steps</div>
+                    <div class="metric-label">Clear path from blank screen to runnable simulation</div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="metric-value">2-10 docs</div>
+                    <div class="metric-label">Best input range for a fast first run</div>
+                  </div>
+                </div>
+
+                <div class="steps-container wizard-rail">
+                  <div class="steps-header">
+                    <span class="diamond-icon">◇</span> Wizard steps
+                  </div>
+
+                  <div class="workflow-list">
+                    <button
+                      v-for="(step, index) in wizardSteps"
+                      :key="step.id"
+                      type="button"
+                      class="workflow-item wizard-step-item"
+                      :class="{ active: wizardStepIndex === index }"
+                      @click="selectWizardStep(index)"
+                    >
+                      <span class="step-num">{{ String(index + 1).padStart(2, '0') }}</span>
+                      <div class="step-info">
+                        <div class="step-title">{{ step.title }}</div>
+                        <div class="step-desc">{{ step.meta }}</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else-if="currentWizardStep.id === 'scenario'" class="onboarding-step">
+              <div class="console-header">
+                <span class="console-label">{{ currentWizardStep.eyebrow }}</span>
+                <span class="console-meta">{{ currentWizardStep.meta }}</span>
               </div>
 
               <div class="scenario-grid">
@@ -134,14 +166,10 @@
               </div>
             </div>
 
-            <div class="console-divider">
-              <span>Choose your graph backend</span>
-            </div>
-
-            <div class="onboarding-step">
+            <div v-else-if="currentWizardStep.id === 'graph'" class="onboarding-step">
               <div class="console-header">
-                <span class="console-label">02 / Graph backend</span>
-                <span class="console-meta">Local is the default. Zep stays optional.</span>
+                <span class="console-label">{{ currentWizardStep.eyebrow }}</span>
+                <span class="console-meta">{{ currentWizardStep.meta }}</span>
               </div>
 
               <div class="scenario-grid provider-grid">
@@ -167,14 +195,10 @@
               </div>
             </div>
 
-            <div class="console-divider">
-              <span>Choose your LLM provider</span>
-            </div>
-
-            <div class="onboarding-step">
+            <div v-else-if="currentWizardStep.id === 'provider'" class="onboarding-step">
               <div class="console-header">
-                <span class="console-label">03 / Provider configuration</span>
-                <span class="console-meta">Per-project provider for refinement and runtime</span>
+                <span class="console-label">{{ currentWizardStep.eyebrow }}</span>
+                <span class="console-meta">{{ currentWizardStep.meta }}</span>
               </div>
 
               <div class="scenario-grid provider-grid">
@@ -200,9 +224,29 @@
                 </div>
               </div>
 
+              <div v-if="providerTelemetry.length" class="guidance-card provider-guidance provider-telemetry">
+                <div class="guidance-title">Billing and usage</div>
+                <div class="guidance-list">
+                  <span v-for="item in providerTelemetry" :key="item">{{ item }}</span>
+                </div>
+              </div>
+
+              <div v-if="lastUsageEstimate" class="guidance-card provider-guidance provider-telemetry">
+                <div class="guidance-title">Latest token estimate</div>
+                <div class="guidance-list">
+                  <span>Runtime: {{ lastUsageEstimate.runtime_label || 'Unknown runtime' }}</span>
+                  <span>Model: {{ lastUsageEstimate.model_display || lastUsageEstimate.model_name || 'Model not declared' }}</span>
+                  <span>Estimated input tokens: {{ formatNumber(lastUsageEstimate.estimated_input_tokens) }}</span>
+                  <span>Estimated output tokens: {{ formatNumber(lastUsageEstimate.estimated_output_tokens) }}</span>
+                  <span>Estimated total tokens: {{ formatNumber(lastUsageEstimate.estimated_total_tokens) }}</span>
+                  <span>Estimated cost: {{ formatUsd(lastUsageEstimate.estimated_cost_usd) }}</span>
+                  <span>{{ lastUsageEstimate.cost_note || lastUsageEstimate.note }}</span>
+                </div>
+              </div>
+
               <div class="structured-grid provider-fields">
-                <label v-if="currentProvider.requiresModel" class="input-group">
-                  <span>Model name</span>
+                <label v-if="currentProvider.requiresModel || currentProvider.acceptsModelHint" class="input-group">
+                  <span>{{ currentProvider.requiresModel ? 'Model name' : 'Model name (optional)' }}</span>
                   <input v-model="providerForm.model_name" type="text" :disabled="loading || providerLoading" />
                 </label>
 
@@ -244,14 +288,10 @@
               <p v-if="providerStatusText" class="helper-text">{{ providerStatusText }}</p>
             </div>
 
-            <div class="console-divider">
-              <span>Add your source material</span>
-            </div>
-
-            <div class="onboarding-step">
+            <div v-else-if="currentWizardStep.id === 'documents'" class="onboarding-step">
               <div class="console-header">
-                <span class="console-label">04 / Upload source documents</span>
-                <span class="console-meta">PDF, Markdown, TXT</span>
+                <span class="console-label">{{ currentWizardStep.eyebrow }}</span>
+                <span class="console-meta">{{ currentWizardStep.meta }}</span>
               </div>
 
               <div
@@ -297,14 +337,10 @@
               </div>
             </div>
 
-            <div class="console-divider">
-              <span>Describe the simulation</span>
-            </div>
-
-            <div class="onboarding-step">
+            <div v-else class="onboarding-step">
               <div class="console-header">
-                <span class="console-label">05 / Build the brief</span>
-                <span class="console-meta">Use the structure below</span>
+                <span class="console-label">{{ currentWizardStep.eyebrow }}</span>
+                <span class="console-meta">{{ currentWizardStep.meta }}</span>
               </div>
 
               <div class="structured-grid">
@@ -344,15 +380,40 @@
               </div>
             </div>
 
-            <div class="console-section btn-section">
-              <button class="start-engine-btn" :disabled="!canSubmit || loading" @click="startSimulation">
-                <span>{{ loading ? 'Preparing...' : 'Run ModusOctopus' }}</span>
+            <div class="console-section btn-section wizard-actions">
+              <button
+                class="wizard-nav-btn secondary"
+                :disabled="!wizardNavigation.canGoBack || loading"
+                @click="goToPreviousWizardStep"
+              >
+                <span>←</span>
+                <span>{{ wizardNavigation.previousLabel }}</span>
+              </button>
+
+              <button
+                v-if="wizardNavigation.canGoNext"
+                class="wizard-nav-btn primary"
+                :disabled="!canAdvanceCurrentStep || loading"
+                @click="goToNextWizardStep"
+              >
+                <span>{{ wizardNavigation.nextLabel }}</span>
                 <span class="btn-arrow">→</span>
               </button>
+
+              <button
+                v-else
+                class="start-engine-btn wizard-nav-btn primary"
+                :disabled="!canSubmit || loading"
+                @click="startSimulation"
+              >
+                <span>{{ loading ? 'Preparing...' : wizardNavigation.nextLabel }}</span>
+                <span class="btn-arrow">→</span>
+              </button>
+
               <p v-if="error" class="error-text">{{ error }}</p>
               <p v-if="helperMessage" class="helper-text">{{ helperMessage }}</p>
             </div>
-          </div>
+            </div>
         </section>
       </section>
 
@@ -366,8 +427,12 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
 import { refineBrief, validateProvider } from '../api/providers'
+import { getInstantDemoConfig } from '../demo/instantDemo'
+import { getOnboardingWizardSteps, getWizardNavigation } from '../onboarding/wizard'
+import heroLogo from '../assets/logo/modusoctopus-hero.svg'
 
 const router = useRouter()
+const wizardSteps = getOnboardingWizardSteps()
 
 const scenarios = [
   {
@@ -487,6 +552,7 @@ const providerOptions = [
     requiresApiKey: false,
     requiresBaseUrl: false,
     requiresModel: false,
+    acceptsModelHint: true,
     usesExecutable: true,
     supportsPipeline: true,
     supportsRefinement: true
@@ -499,6 +565,7 @@ const providerOptions = [
     requiresApiKey: false,
     requiresBaseUrl: false,
     requiresModel: false,
+    acceptsModelHint: true,
     usesExecutable: true,
     supportsPipeline: true,
     supportsRefinement: true
@@ -525,6 +592,7 @@ const graphBackendOptions = [
 const selectedScenario = ref('pricing')
 const selectedProvider = ref('openai')
 const selectedGraphBackend = ref('local')
+const wizardStepIndex = ref(0)
 const files = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -534,6 +602,7 @@ const providerLoading = ref(false)
 const refineLoading = ref(false)
 const providerStatus = ref(null)
 const refinedBrief = ref('')
+const lastUsageEstimate = ref(null)
 const isDragOver = ref(false)
 const fileInput = ref(null)
 const providerForm = ref({
@@ -548,6 +617,8 @@ const brief = ref({ ...scenarios[0].defaults })
 const currentScenario = computed(() => {
   return scenarios.find((scenario) => scenario.id === selectedScenario.value) || scenarios[0]
 })
+const currentWizardStep = computed(() => wizardSteps[wizardStepIndex.value])
+const wizardNavigation = computed(() => getWizardNavigation(wizardStepIndex.value, wizardSteps.length))
 
 const currentProvider = computed(() => {
   return providerOptions.find((provider) => provider.id === selectedProvider.value) || providerOptions[1]
@@ -581,7 +652,7 @@ const providerConfig = computed(() => {
     provider_type: selectedProvider.value
   }
 
-  if (currentProvider.value.requiresModel && providerForm.value.model_name.trim()) {
+  if (providerForm.value.model_name.trim()) {
     config.model_name = providerForm.value.model_name.trim()
   }
   if (currentProvider.value.requiresBaseUrl && providerForm.value.base_url.trim()) {
@@ -609,6 +680,23 @@ const canSubmit = computed(() => {
     && files.value.length > 0
     && providerSupportsPipeline.value
     && providerIsReadyForPipeline.value
+})
+
+const canAdvanceCurrentStep = computed(() => {
+  switch (currentWizardStep.value.id) {
+    case 'scenario':
+      return true
+    case 'graph':
+      return true
+    case 'provider':
+      return providerIsReadyForPipeline.value
+    case 'documents':
+      return files.value.length > 0
+    case 'brief':
+      return canSubmit.value
+    default:
+      return false
+  }
 })
 
 const briefHasContent = computed(() => {
@@ -665,6 +753,26 @@ const providerStatusText = computed(() => {
   return 'Provider check completed.'
 })
 
+const providerTelemetry = computed(() => {
+  const health = providerStatus.value?.healthcheck || {}
+  const items = []
+
+  if (health.version) {
+    items.push(`CLI version: ${health.version}`)
+  }
+  if (health.billing_owner) {
+    items.push(`Billing owner: ${health.billing_owner}`)
+  }
+  if (health.usage_reporting === 'not_available') {
+    items.push('Exact token and cost reporting is not currently available for this CLI integration.')
+  }
+  if (health.usage_reporting_note) {
+    items.push(health.usage_reporting_note)
+  }
+
+  return items
+})
+
 function selectScenario(id) {
   if (id === selectedScenario.value) {
     return
@@ -682,11 +790,25 @@ function selectScenario(id) {
   }
 }
 
+function selectWizardStep(index) {
+  wizardStepIndex.value = index
+}
+
+function goToNextWizardStep() {
+  if (!canAdvanceCurrentStep.value) return
+  wizardStepIndex.value = Math.min(wizardStepIndex.value + 1, wizardSteps.length - 1)
+}
+
+function goToPreviousWizardStep() {
+  wizardStepIndex.value = Math.max(wizardStepIndex.value - 1, 0)
+}
+
 function selectProvider(id) {
   selectedProvider.value = id
   providerError.value = ''
   providerStatus.value = null
   refinedBrief.value = ''
+  lastUsageEstimate.value = null
 
   if (id === 'codex_cli') {
     providerForm.value.executable = 'codex'
@@ -791,6 +913,7 @@ async function runBriefRefinement() {
       }
     })
     refinedBrief.value = response.data?.refined_brief || ''
+    lastUsageEstimate.value = response.data?.usage_estimate || null
     helperMessage.value = refinedBrief.value ? 'Brief refined. The refined version will be used for the next run.' : 'No refined brief was returned.'
   } catch (err) {
     providerError.value = err.message || 'Brief refinement failed.'
@@ -801,7 +924,27 @@ async function runBriefRefinement() {
 
 function clearRefinedBrief() {
   refinedBrief.value = ''
+  lastUsageEstimate.value = null
   helperMessage.value = ''
+}
+
+function formatNumber(value) {
+  if (typeof value !== 'number') {
+    return '0'
+  }
+  return new Intl.NumberFormat('en-US').format(value)
+}
+
+function formatUsd(value) {
+  if (typeof value !== 'number') {
+    return 'Unavailable'
+  }
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4
+  }).format(value)
 }
 
 function startSimulation() {
@@ -814,6 +957,40 @@ function startSimulation() {
       selectedGraphBackend.value,
       providerConfig.value,
       providerForm.value.api_key.trim()
+    )
+    router.push({
+      name: 'Process',
+      params: { projectId: 'new' }
+    })
+  })
+}
+
+function runInstantDemo() {
+  if (loading.value) return
+
+  const demo = getInstantDemoConfig()
+  const demoFiles = demo.documents.map((doc) => new File([doc.content], doc.name, { type: doc.type }))
+
+  selectedScenario.value = 'launch'
+  selectedGraphBackend.value = demo.graphBackend
+  selectedProvider.value = demo.llmConfig.provider_type
+  providerForm.value.executable = demo.llmConfig.executable
+  providerForm.value.model_name = demo.llmConfig.model_name || ''
+  providerForm.value.base_url = ''
+  providerForm.value.api_key = ''
+  providerError.value = ''
+  providerStatus.value = null
+  refinedBrief.value = ''
+  helperMessage.value = `Loaded instant demo: ${demo.title}`
+  files.value = demoFiles
+
+  import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
+    setPendingUpload(
+      demoFiles,
+      demo.simulationRequirement,
+      demo.graphBackend,
+      demo.llmConfig,
+      ''
     )
     router.push({
       name: 'Process',
@@ -846,13 +1023,34 @@ function startSimulation() {
 }
 
 .navbar {
-  height: 64px;
-  background: var(--black);
+  min-height: 72px;
+  background: rgba(9, 21, 31, 0.96);
   color: var(--white);
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 40px rgba(8, 24, 34, 0.12);
+}
+
+.nav-brand-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.nav-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
 }
 
 .nav-brand {
@@ -860,6 +1058,13 @@ function startSimulation() {
   font-weight: 800;
   letter-spacing: 1px;
   font-size: 1.1rem;
+}
+
+.nav-subbrand {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .github-link {
@@ -875,15 +1080,20 @@ function startSimulation() {
 .main-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 56px 32px 72px;
+  padding: 44px 32px 72px;
 }
 
 .hero-section {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: 1.05fr 0.95fr;
   gap: 40px;
   align-items: center;
   margin-bottom: 48px;
+}
+
+.full-width-demo {
+  grid-column: 1 / -1;
+  margin-top: 12px;
 }
 
 .tag-row {
@@ -894,7 +1104,7 @@ function startSimulation() {
 }
 
 .orange-tag {
-  background: var(--orange);
+  background: linear-gradient(135deg, #ff7a36 0%, #d95f33 100%);
   color: var(--white);
   padding: 6px 10px;
   border-radius: 999px;
@@ -905,22 +1115,26 @@ function startSimulation() {
 }
 
 .version-text {
-  color: #7b7b7b;
+  color: #6a747a;
   font-family: var(--font-mono);
   font-size: 0.8rem;
+  border: 1px solid rgba(16, 59, 82, 0.12);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.84);
 }
 
 .main-title {
   margin: 0;
   font-size: clamp(3rem, 7vw, 5rem);
-  line-height: 0.95;
+  line-height: 0.92;
   letter-spacing: -0.06em;
-  max-width: 720px;
+  max-width: 780px;
 }
 
 .gradient-text {
   display: block;
-  background: linear-gradient(90deg, #000000 0%, #444444 60%, #ff5a1f 140%);
+  background: linear-gradient(90deg, #071f2f 0%, #124d5f 58%, #e07741 120%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -947,32 +1161,148 @@ function startSimulation() {
   font-size: 0.9rem;
 }
 
+.trust-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.trust-card {
+  border: 1px solid rgba(16, 59, 82, 0.1);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(247, 250, 252, 0.94) 100%);
+  padding: 16px;
+  min-height: 114px;
+}
+
+.trust-value {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #0f3148;
+}
+
+.trust-label {
+  color: var(--gray-text);
+  line-height: 1.55;
+  font-size: 0.9rem;
+}
+
+.demo-callout {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  align-items: center;
+  margin-top: 22px;
+  padding: 20px 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(16, 59, 82, 0.12);
+  background:
+    radial-gradient(circle at top right, rgba(240, 139, 82, 0.16), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 252, 0.96) 100%);
+}
+
+.demo-callout-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.demo-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #b2542b;
+}
+
+.demo-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: #0f3148;
+}
+
+.demo-text {
+  color: var(--gray-text);
+  line-height: 1.65;
+  font-size: 0.94rem;
+  max-width: 620px;
+}
+
+.instant-demo-btn {
+  border: none;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0c2333 0%, #125f67 58%, #e07842 100%);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 16px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  box-shadow: 0 18px 36px rgba(17, 44, 60, 0.18);
+}
+
+.instant-demo-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .hero-logo-wrap {
   display: flex;
   justify-content: flex-end;
 }
 
+.hero-visual-card {
+  border: 1px solid rgba(16, 59, 82, 0.12);
+  border-radius: 32px;
+  padding: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(243, 248, 250, 0.95) 100%);
+  box-shadow: 0 28px 60px rgba(17, 44, 60, 0.12);
+}
+
 .hero-logo {
-  width: min(100%, 520px);
+  width: 100%;
+  display: block;
+}
+
+.visual-caption {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 16px 18px 4px;
+}
+
+.visual-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f3148;
+}
+
+.visual-copy {
+  color: var(--gray-text);
+  line-height: 1.65;
+  font-size: 0.94rem;
 }
 
 .dashboard-section {
-  display: grid;
-  grid-template-columns: 0.92fr 1.08fr;
-  gap: 28px;
-  align-items: start;
+  display: block;
 }
 
-.left-panel,
 .right-panel {
-  border: 1px solid var(--border);
+  border: 1px solid rgba(16, 59, 82, 0.08);
   border-radius: 28px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(8px);
+  box-shadow: 0 20px 50px rgba(17, 44, 60, 0.06);
 }
 
-.left-panel {
-  padding: 28px;
+.wizard-overview-card {
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfaf7 100%);
+  padding: 22px;
 }
 
 .panel-header,
@@ -1047,6 +1377,10 @@ function startSimulation() {
   padding-top: 20px;
 }
 
+.wizard-rail {
+  margin-top: 8px;
+}
+
 .steps-header {
   font-family: var(--font-mono);
   font-size: 0.8rem;
@@ -1065,6 +1399,25 @@ function startSimulation() {
   display: grid;
   grid-template-columns: 42px 1fr;
   gap: 14px;
+}
+
+.wizard-step-item {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff;
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.wizard-step-item:hover,
+.wizard-step-item.active {
+  border-color: #0f6a73;
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(16, 59, 82, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #f5fbfc 100%);
 }
 
 .step-num {
@@ -1093,6 +1446,35 @@ function startSimulation() {
 
 .console-box {
   padding: 28px;
+}
+
+.wizard-full-width {
+  width: 100%;
+}
+
+.wizard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.wizard-title {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #111111;
+  margin-top: 8px;
+}
+
+.wizard-progress {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: #7b7b7b;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 12px;
+  white-space: nowrap;
 }
 
 .onboarding-step,
@@ -1157,9 +1539,9 @@ function startSimulation() {
 
 .scenario-card:hover,
 .scenario-card.active {
-  border-color: var(--orange);
+  border-color: #0f6a73;
   transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(255, 90, 31, 0.08);
+  box-shadow: 0 16px 28px rgba(16, 59, 82, 0.08);
 }
 
 .scenario-name {
@@ -1174,6 +1556,10 @@ function startSimulation() {
 
 .guidance-card {
   padding: 18px;
+}
+
+.intro-guidance {
+  margin-bottom: 14px;
 }
 
 .guidance-title {
@@ -1290,6 +1676,13 @@ function startSimulation() {
   margin-bottom: 14px;
 }
 
+.provider-telemetry .guidance-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .provider-fields {
   margin-bottom: 14px;
 }
@@ -1389,6 +1782,41 @@ function startSimulation() {
   gap: 10px;
 }
 
+.wizard-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 12px;
+}
+
+.wizard-nav-btn {
+  border: none;
+  border-radius: 18px;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 18px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  min-height: 62px;
+}
+
+.wizard-nav-btn.primary {
+  background: linear-gradient(90deg, #000000 0%, #262626 70%, #ff5a1f 150%);
+  color: white;
+}
+
+.wizard-nav-btn.secondary {
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #ffffff 0%, #f7f5f2 100%);
+  color: #111111;
+}
+
+.wizard-nav-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .start-engine-btn {
   border: none;
   border-radius: 18px;
@@ -1429,6 +1857,14 @@ function startSimulation() {
   .hero-logo-wrap {
     justify-content: flex-start;
   }
+
+  .trust-row {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-callout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1443,6 +1879,18 @@ function startSimulation() {
   .structured-grid,
   .metrics-row {
     grid-template-columns: 1fr;
+  }
+
+  .wizard-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .nav-brand-block {
+    gap: 10px;
+  }
+
+  .nav-subbrand {
+    display: none;
   }
 }
 </style>
