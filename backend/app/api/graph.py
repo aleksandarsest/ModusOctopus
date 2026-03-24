@@ -31,6 +31,15 @@ from ..models.project import ProjectManager, ProjectStatus
 logger = get_logger('modusoctopus.api')
 
 
+def _extract_graph_counts(graph_data: Any) -> tuple[int, int]:
+    """Support both GraphData dataclasses and legacy dict payloads."""
+    if hasattr(graph_data, "node_count") and hasattr(graph_data, "edge_count"):
+        return int(graph_data.node_count), int(graph_data.edge_count)
+    if isinstance(graph_data, dict):
+        return int(graph_data.get("node_count", 0)), int(graph_data.get("edge_count", 0))
+    raise TypeError(f"Unsupported graph data type: {type(graph_data).__name__}")
+
+
 def _read_llm_payload(data: Dict[str, Any]) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
     raw_config = data.get("llm_config")
     if raw_config is None:
@@ -601,18 +610,49 @@ def build_graph():
                         llm_client=LLMClient(provider_config=resolve_project_provider_config(project))
                         if project.llm_config else None
                     )
+
+                    def persist_local_progress(payload: Dict[str, Any]) -> None:
+                        completed_chunks = int(payload.get("completed_chunks") or 0)
+                        total_chunks = max(1, int(payload.get("total_chunks") or 0))
+                        partial_graph = payload.get("graph") or {}
+
+                        graph_store.ingest_chunks(
+                            graph_id,
+                            [payload.get("chunk_text") or ""],
+                            batch_size=1,
+                        )
+                        if isinstance(graph_store, LocalGraphStore):
+                            graph_store.replace_graph_data(
+                                graph_id,
+                                nodes=list(partial_graph.get("nodes") or []),
+                                edges=list(partial_graph.get("edges") or []),
+                            )
+
+                        progress = 25 + int((completed_chunks / total_chunks) * 65)
+                        task_manager.update_task(
+                            task_id,
+                            message=(
+                                f"Extracted {completed_chunks}/{total_chunks} chunks. "
+                                f"Nodes: {len(partial_graph.get('nodes') or [])}, "
+                                f"Edges: {len(partial_graph.get('edges') or [])}"
+                            ),
+                            progress=progress,
+                            progress_detail={
+                                "completed_chunks": completed_chunks,
+                                "total_chunks": total_chunks,
+                                "node_count": len(partial_graph.get("nodes") or []),
+                                "edge_count": len(partial_graph.get("edges") or []),
+                            },
+                        )
+
                     built = local_builder.build(
                         text=text,
                         ontology=ontology,
                         chunk_size=chunk_size,
                         chunk_overlap=chunk_overlap,
+                        progress_callback=persist_local_progress,
                     )
                     total_chunks = len(built["chunks"])
-                    graph_store.ingest_chunks(
-                        graph_id,
-                        [chunk["text"] for chunk in built["chunks"]],
-                        batch_size=3,
-                    )
                     if isinstance(graph_store, LocalGraphStore):
                         graph_store.replace_graph_data(
                             graph_id,
@@ -688,8 +728,7 @@ def build_graph():
                 project.status = ProjectStatus.GRAPH_COMPLETED
                 ProjectManager.save_project(project)
                 
-                node_count = graph_data.get("node_count", 0)
-                edge_count = graph_data.get("edge_count", 0)
+                node_count, edge_count = _extract_graph_counts(graph_data)
                 build_logger.info(f"[{task_id}] Graph build completed: graph_id={graph_id}, nodes={node_count}, edges={edge_count}")
                 
                 # 完成

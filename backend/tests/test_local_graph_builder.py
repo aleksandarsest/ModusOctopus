@@ -91,6 +91,57 @@ class SequenceProvider(BaseLLMProvider):
 
 
 class TestLocalGraphBuilder(unittest.TestCase):
+    def test_builder_reports_incremental_progress_with_partial_graph(self):
+        provider = SequenceProvider(
+            [
+                """
+                {
+                  "entities": [
+                    {"name": "Alice", "entity_type": "Person", "summary": "Team lead", "attributes": {}},
+                    {"name": "Acme", "entity_type": "Organization", "summary": "Employer", "attributes": {}}
+                  ],
+                  "relations": [
+                    {"type": "WORKS_FOR", "source": "Alice", "target": "Acme", "fact": "Alice works for Acme", "attributes": {}}
+                  ]
+                }
+                """,
+                """
+                {
+                  "entities": [
+                    {"name": "Bob", "entity_type": "Person", "summary": "Engineer", "attributes": {}}
+                  ],
+                  "relations": [
+                    {"type": "RESPONDS_TO", "source": "Bob", "target": "Alice", "fact": "Bob responds to Alice", "attributes": {}}
+                  ]
+                }
+                """,
+            ]
+        )
+        builder = LocalGraphBuilder(llm_client=LLMClient(provider=provider))
+        progress_updates = []
+
+        graph = builder.build(
+            text="Alice works for Acme.\n\nBob responds to Alice.",
+            ontology={
+                "entity_types": [{"name": "Person"}, {"name": "Organization"}],
+                "edge_types": [{"name": "WORKS_FOR"}, {"name": "RESPONDS_TO"}],
+            },
+            chunk_size=30,
+            chunk_overlap=0,
+            progress_callback=lambda payload: progress_updates.append(payload),
+        )
+
+        self.assertEqual(len(progress_updates), 2)
+        self.assertEqual(progress_updates[0]["completed_chunks"], 1)
+        self.assertEqual(progress_updates[0]["total_chunks"], 2)
+        self.assertEqual(len(progress_updates[0]["graph"]["nodes"]), 2)
+        self.assertEqual(len(progress_updates[0]["graph"]["edges"]), 1)
+        self.assertEqual(progress_updates[1]["completed_chunks"], 2)
+        self.assertEqual(len(progress_updates[1]["graph"]["nodes"]), 3)
+        self.assertEqual(len(progress_updates[1]["graph"]["edges"]), 2)
+        self.assertEqual(graph["nodes"], progress_updates[1]["graph"]["nodes"])
+        self.assertEqual(graph["edges"], progress_updates[1]["graph"]["edges"])
+
     def test_builder_merges_duplicate_entities_and_links_edges(self):
         provider = SequenceProvider(
             [

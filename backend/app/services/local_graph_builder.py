@@ -5,7 +5,7 @@ Local graph construction from chunk-level extraction.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from ..utils.llm_client import LLMClient
 from .text_processor import TextProcessor
@@ -52,10 +52,30 @@ class LocalGraphBuilder:
         ontology: Dict[str, Any],
         chunk_size: int = 500,
         chunk_overlap: int = 50,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         chunks = TextProcessor.split_text(text, chunk_size=chunk_size, overlap=chunk_overlap)
-        extracted_chunks = [self._extract_from_chunk(chunk, ontology) for chunk in chunks]
-        return self._consolidate(chunks, extracted_chunks)
+        extracted_chunks: List[Dict[str, Any]] = []
+        latest_graph: Optional[Dict[str, Any]] = None
+        total_chunks = len(chunks)
+
+        for chunk_index, chunk in enumerate(chunks, start=1):
+            extracted_chunks.append(self._extract_from_chunk(chunk, ontology))
+            latest_graph = self._consolidate(chunks[:chunk_index], extracted_chunks)
+            if progress_callback:
+                progress_callback(
+                    {
+                        "completed_chunks": chunk_index,
+                        "total_chunks": total_chunks,
+                        "chunk_index": chunk_index,
+                        "chunk_text": chunk,
+                        "graph": latest_graph,
+                    }
+                )
+
+        if latest_graph is None:
+            return self._consolidate(chunks, extracted_chunks)
+        return latest_graph
 
     def _extract_from_chunk(self, chunk: str, ontology: Dict[str, Any]) -> Dict[str, Any]:
         entity_types = [entity["name"] for entity in ontology.get("entity_types", [])]
